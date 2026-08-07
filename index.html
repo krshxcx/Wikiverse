@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WIKIVERSE — Infinite Knowledge Explorer</title>
+<link rel="icon" href="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-500-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-700-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-400-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-600-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600-normal.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<!-- ============ TOPBAR ============ -->
+<div class="topbar">
+  <div class="brand">
+    <img src="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png" alt="Wikiverse logo">
+    <div>
+      <div class="brand-name">WIKI<em></em></div>
+      <div class="brand-sub">// INFINITE KNOWLEDGE EXPLORER</div>
+    </div>
+  </div> 
+  <div class="top-status">
+    <span class="dot-live"></span>
+    <span id="clock">00:00:00 UTC</span>
+    <button class="ibtn" id="themeBtn" title="Toggle theme">🌙</button>
+    <div class="user-chip" id="userChip" title="Your identity">
+      <div class="ava" id="userChipAva">◌</div><span id="userChipName">PROFILE</span>
+    </div>
+  </div>
+</div>
+
+<div class="app-shell">
+
+  <!-- ============ LEFT: SEARCH / CATEGORY / STATS ============ -->
+  <div class="sidebar">
+    <div class="window">
+      <div class="titlebar"><span>SEARCH</span></div>
+      <div class="body">
+        <div class="scan-wrap">
+          <input class="scan-input" id="scanInput" placeholder="Search anything…" autocomplete="off">
+          <div class="scan-results" id="scanResults"></div>
+        </div>
+        <div class="scan-hint">PRESS / TO FOCUS · ENTER TO OPEN TOP HIT</div>
+      </div>
+    </div>
+
+    <div class="window">
+      <div class="titlebar"><span>CATEGORY</span></div>
+      <div class="body">
+        <div class="vibe-list" id="pills">
+          <button class="pill active" data-cat="all" data-name="Anything"><span class="em">🌐</span>Anything</button>
+          <button class="pill" data-cat="Philosophy" data-name="Philosophy"><span class="em">🏛️</span>Philosophy</button>
+          <button class="pill" data-cat="Psychology" data-name="Psychology"><span class="em">🧠</span>Psychology</button>
+          <button class="pill" data-cat="Biology" data-name="Biology"><span class="em">🧬</span>Biology</button>
+          <button class="pill" data-cat="Physics" data-name="Physics"><span class="em">⚛️</span>Physics</button>
+          <button class="pill" data-cat="Mathematics" data-name="Mathematics"><span class="em">🔢</span>Mathematics</button>
+          <button class="pill" data-cat="History" data-name="History"><span class="em">📜</span>History</button>
+          <button class="pill" data-cat="Art" data-name="Art"><span class="em">🎨</span>Art</button>
+          <button class="pill" data-cat="Music" data-name="Music"><span class="em">🎵</span>Music</button>
+          <button class="pill" data-cat="Geography" data-name="Geography"><span class="em">🗺️</span>Geography</button>
+          <button class="pill" data-cat="Technology" data-name="Technology"><span class="em">💾</span>Technology</button>
+          <button class="pill" data-cat="Astronomy" data-name="Astronomy"><span class="em">🔭</span>Astronomy</button>
+          <button class="pill" data-cat="Human_sexuality" data-name="Sexuality"><span class="em">💞</span>Sexuality</button>
+          <button class="pill" data-cat="Unsolved_mysteries" data-name="Mysteries"><span class="em">🕵️</span>Mysteries</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="window">
+      <div class="titlebar"><span>STATS</span></div>
+      <div class="body">
+        <div class="stats-grid">
+          <div class="stat"><b id="statTotal">0</b><span>TOTAL FINDS</span></div>
+          <div class="stat"><b id="statSession">0</b><span>THIS SESSION</span></div>
+          <div class="stat"><b id="statStreak">0d</b><span>DAY STREAK</span></div>
+          <div class="stat"><b id="statSaved">—</b><span>ARCHIVED</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CENTER: KNOWLEDGE VIEWER ============ -->
+  <div class="main-content">
+    <div class="window viewer-window">
+      <div class="titlebar viewer-titlebar">
+        <span>KNOWLEDGE VIEWER ▸ <b id="vibeLabel">Anything</b></span>
+        <div class="viewer-actions">
+          <button class="ibtn" id="likeBtn" title="Like [L]">🤍</button>
+          <button class="ibtn" id="favBtn" title="Favorite [F]">☆</button>
+          <button class="ibtn" id="saveBtn" title="Archive [S]">💾</button>
+          <button class="ibtn" id="copyTextBtn" title="Copy text">📄</button>
+          <button class="ibtn" id="copyLinkBtn" title="Copy link">🔗</button>
+          <button class="ibtn" id="shareBtn" title="Share">📡</button>
+          <button class="ibtn" id="speakBtn" title="Read aloud">🔉</button>
+          <button class="btn-next" id="nextBtn" title="Next article [SPACE]">NEXT ➜</button>
+        </div>
+      </div>
+      <div class="progress"><div id="progressFill"></div></div>
+      <div class="body card-body" id="cardBody">
+        <div class="loader" id="loader">
+          <div class="dots"><span class="g"></span><span class="p"></span><span class="c"></span></div>
+          SUMMONING KNOWLEDGE…
+        </div>
+        <div id="result">
+          <span class="badge" id="badge">RANDOM FIND</span>
+          <div class="content">
+            <img class="thumb" id="thumb" style="display:none" alt="Article thumbnail">
+            <div class="details">
+              <h2 id="title"></h2>
+              <div class="meta-line" id="metaLine"></div>
+              <div id="extract" class="article-content"></div>
+              <a class="btn-src" id="wikiLink" href="#" target="_blank" rel="noopener">VIEW ORIGINAL ON WIKIPEDIA ↗</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="window">
+      <div class="titlebar"><span>RECENTLY VIEWED</span></div>
+      <div class="hist-body" id="histList"><span class="hist-empty">NO ARTICLES YET — START EXPLORING…</span></div>
+    </div>
+  </div>
+
+  <!-- ============ RIGHT: ACCOUNT / TRICKS ============ -->
+  <div class="sidebar">
+    <div class="window" id="authWin">
+      <div class="titlebar"><span>ACCOUNT</span></div>
+      <div class="body" id="authForms">
+        <form id="loginForm">
+          <input type="text" id="loginUser" placeholder="Username" class="auth-input" autocomplete="username">
+          <div class="pass-wrap">
+            <input type="password" id="loginPass" placeholder="Password" class="auth-input" autocomplete="current-password">
+            <button type="button" class="pass-eye" id="togglePass1" title="Show / hide">👁️</button>
+          </div>
+          <label class="remember"><input type="checkbox" id="loginRemember" checked> Remember me on this device</label>
+          <button class="btn-primary" type="submit">LOGIN</button>
+          <p class="auth-switch">New explorer? <a id="toRegister">Create an account</a></p>
+        </form>
+        <form id="registerForm" style="display:none;">
+          <input type="text" id="regUser" placeholder="Choose username (3–16 chars)" class="auth-input">
+          <div class="pass-wrap">
+            <input type="password" id="regPass" placeholder="Choose password (min 4 chars)" class="auth-input">
+            <button type="button" class="pass-eye" id="togglePass2" title="Show / hide">👁️</button>
+          </div>
+          <button class="btn-primary" type="submit">REGISTER</button>
+          <p class="auth-switch">Already registered? <a id="toLogin">Sign in</a></p>
+        </form>
+        <div class="demo-hint">DEMO ACCESS → krshxcx / krshxcx</div>
+      </div>
+      <div class="body" id="profileView" style="display:none;">
+        <div class="profile-head">
+          <div class="ava-big" id="avaBig">?</div>
+          <div><h3 id="welcomeUser"></h3><small>● LOGGED IN</small></div>
+        </div>
+        <div class="profile-tabs">
+          <button class="tab-btn active" data-tab="saved">SAVED <b id="cntSaved">0</b></button>
+          <button class="tab-btn" data-tab="fav">FAVORITES <b id="cntFav">0</b></button>
+          <button class="tab-btn" data-tab="liked">LIKED <b id="cntLiked">0</b></button>
+        </div>
+        <div class="profile-list" id="profileList"></div>
+        <button class="btn-danger" id="logoutBtn">LOGOUT</button>
+        <button class="btn-danger" id="deleteAccBtn">DELETE ACCOUNT</button>
+      </div>
+    </div>
+
+    <div class="window">
+      <div class="titlebar"><span>TRICKS &amp; SOUND</span></div>
+      <div class="body">
+        <div class="tricks">
+          <button class="trick" id="trickRandom" title="Roll an article">🎲 Random</button>
+          <button class="trick" id="trickWeird" title="Bizarre & unusual">🤪 Weird</button>
+          <button class="trick" id="trickTrail" title="Everything leads to philosophy">🧭 Trail</button>
+          <button class="trick" id="trickMystery" title="Random unsolved mystery">🔮 Mystery</button>
+          <button class="trick" id="trickPotd" title="Picture of the day">🖼️ POTD</button>
+          <button class="trick" id="trickOtd" title="On this day in history">📅 OTD</button>
+          <button class="trick wide" id="rouletteBtn" title="Auto roulette [R]">🔁 Auto Roulette</button>
+          <button class="trick wide" id="sndBtn" title="Toggle 8-bit sound">🔊 SOUND: ON</button>
+        </div>
+        <div class="kbd-hint">SPACE next · R roulette · L like · F favorite · S save · / search</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
