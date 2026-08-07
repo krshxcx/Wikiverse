@@ -11,15 +11,47 @@ const WEIRD = ["Dancing_plague_of_1518","Great_Emu_War","Boston_Molasses_Disaste
 const MYSTERIES = ["Dyatlov_Pass_incident","Mary_Celeste","Voynich_manuscript","Tamam_Shud_case","Wow!_signal","D.B._Cooper","Jack_the_Ripper","Roanoke_Colony","Antikythera_mechanism","Nazca_Lines"];
 const PHILOSOPHY = ["Philosophy_of_mind","Epistemology","Metaphysics","Ethics","Stoicism","Existentialism","Nihilism","Plato","Aristotle","Immanuel_Kant","Free_will","Ship_of_Theseus","Trolley_problem","Allegory_of_the_cave","Absurdism","Utilitarianism","Determinism","Consequentialism","Virtue_ethics","Simulated_reality"];
 
-/* Candidate chains — if a Wikipedia category is empty/missing, try the next, then fall back to curated pools */
+/* Candidate chains */
 const CATEGORY_CANDIDATES = {
   philosophy: ["Branches_of_philosophy", "Philosophy"],
   psychology: ["Psychology"], biology: ["Biology"], physics: ["Physics"],
   mathematics: ["Mathematics"], history: ["History"], art: ["Art"], music: ["Music"],
   geography: ["Geography"], technology: ["Technology"], astronomy: ["Astronomy"],
   human_sexuality: ["Human_sexuality"],
-  unsolved_mysteries: ["Unsolved_mysteries", "Mysteries", "Paranormal", "Conspiracy_theories"]
+  unsolved_mysteries: ["Unsolved_mysteries", "Mysteries", "Paranormal", "Conspiracy_theories"],
+  conspiracy_theories: ["Conspiracy_theories"],
+  mythology: ["Mythology", "Greek_mythology", "Norse_mythology"],
+  cryptids: ["Cryptids", "Folklore"],
+  occult: ["Occult", "Parapsychology", "Pseudoscience"],
+  paradoxes: ["Paradoxes", "Thought_experiments"],
+  consciousness: ["Consciousness", "Philosophy_of_mind"],
+  artificial_intelligence: ["Artificial_intelligence"],
+  internet_memes: ["Internet_memes", "Internet_culture"],
+  pirates: ["Pirates"],
+  serial_killers: ["Serial_killers", "Organized_crime"],
+  /* adult sub-keys so the single Filth pill can pull from any of them */
+  bdsm: ["BDSM"], erotica: ["Erotica", "Erotic_art"], sexology: ["Sexology"],
+  paraphilias: ["Paraphilias", "Sexual_fetishism"], lgbt: ["LGBT", "LGBT_culture"],
+  polyamory: ["Polyamory"], sex_industry: ["Sex_industry", "Prostitution", "Pornography"],
+  pornography: ["Pornography"]
 };
+
+/* THE DIRTY ROLODEx — every roll picks a random category, then a random article */
+const ADULT_CATS = ["bdsm","erotica","sexology","paraphilias","lgbt","polyamory","sex_industry","pornography","human_sexuality"];
+const ADULT_POOL = [
+  "BDSM","Sexual_fetishism","Paraphilia","Safe_word","Bondage_(BDSM)","Dominance_and_submission",
+  "Sadomasochism","Erotic_spanking","Rope_bondage","Femdom","Switch_(BDSM)","Aftercare_(BDSM)",
+  "Erotica","Erotic_art","History_of_erotic_depictions","Kama_Sutra","Ananga_Ranga","Shunga",
+  "Sexology","Alfred_Kinsey","Kinsey_Reports","Masters_and_Johnson","Havelock_Ellis","Magnus_Hirschfeld",
+  "Paraphilia","Voyeurism","Exhibitionism","Frotteurism","Fetishism","Partialism",
+  "LGBT","Stonewall_riots","Same-sex_marriage","Queer_theory","History_of_homosexuality","Two-spirit",
+  "Polyamory","Polygamy","Open_marriage","Swinging_(sexual_activity)","Free_love","Relationship_anarchy",
+  "Pornography","History_of_pornography","Golden_Age_of_Porn","Internet_pornography","Deepfake_pornography",
+  "Prostitution","Sex_work","Strip_club","Sex_shop","Red-light_district","Brothel",
+  "Human_sexuality","Sexual_intercourse","Masturbation","Orgasm","Libido","Sexual_arousal",
+  "Tantra","Sacred_prostitution","Carnival_(festival)","Aphrodisiac","Love_doll"
+];
+
 const FALLBACK_POOLS = { philosophy: PHILOSOPHY, unsolved_mysteries: MYSTERIES };
 
 /* ============ HELPERS ============ */
@@ -89,6 +121,7 @@ function beep(f = 880, d = 0.07) {
   } catch(e) {}
 }
 const jingle = () => { beep(660); setTimeout(() => beep(880), 90); setTimeout(() => beep(1320), 180); };
+const filthyJingle = () => { beep(220,.1); setTimeout(()=>beep(330,.1),110); setTimeout(()=>beep(440,.18),220); };
 if ($("sndBtn")) $("sndBtn").addEventListener("click", function() {
   soundOn = !soundOn; localStorage.setItem("wk_sound", soundOn ? "1" : "0");
   this.textContent = soundOn ? "🔊 SOUND: ON" : "🔇 SOUND: OFF";
@@ -113,7 +146,6 @@ document.addEventListener("click", e => {
   if (!e.target.closest("#settingsPop") && !e.target.closest("#viewSettingsBtn")) closePop("settingsPop");
 });
 
-/* Settings pop tabs */
 document.querySelectorAll("#settingsPop .tab-btn").forEach(btn => btn.addEventListener("click", function() {
   document.querySelectorAll("#settingsPop .tab-btn").forEach(b => b.classList.remove("active"));
   this.classList.add("active");
@@ -229,7 +261,6 @@ if ($("deleteAccBtn")) $("deleteAccBtn").addEventListener("click", () => {
   clearSession(); currentUser = null; userData = null; renderAuth(); toast("🗑 ACCOUNT DELETED"); beep(220, .25);
 });
 
-/* Profile tabs (scoped to popover only) */
 document.querySelectorAll("#profileView .tab-btn").forEach(btn => btn.addEventListener("click", function() {
   document.querySelectorAll("#profileView .tab-btn").forEach(b => b.classList.remove("active"));
   this.classList.add("active"); activeTab = this.dataset.tab; renderProfileList(activeTab); beep(800);
@@ -333,7 +364,8 @@ function render(a, badge, kind) {
   if ($("result")) $("result").classList.add("show");
   const cb = $("cardBody");
   if (cb) { cb.classList.remove("pop"); void cb.offsetWidth; cb.classList.add("pop"); cb.scrollTop = 0; }
-  onScrollProgress(); updateLikeFavState(); pushHistory(a.title); bumpStats(); jingle();
+  onScrollProgress(); updateLikeFavState(); pushHistory(a.title); bumpStats();
+  if (kind === "adult") filthyJingle(); else jingle();
 }
 function showError(msg) {
   busy = false; stopSpeak();
@@ -360,13 +392,11 @@ if ($("extract")) $("extract").addEventListener("click", e => {
   } else if (href.startsWith("http")) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
 });
 
-/* ============ DISCOVERY — candidate chain + pool fallback ============ */
+/* ============ DISCOVERY — FIXED single-fetch candidate chain ============ */
 async function fetchCategoryMembers(key) {
-  const cands = CATEGORY_CANDIDATES[key] || [key];
+  const cands = CATEGORY_CANDIDATES[key] || [key.charAt(0).toUpperCase() + key.slice(1)];
   for (const c of cands) {
     try {
-      const res = await fetch(`${API}?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(c)}&cmlimit=100&cmtype=page&format=json&origin=*`);
-      const m = (await res.json()).query && (await res.json().catch(() => null) || {}).query ? null : null;
       const json = await (await fetch(`${API}?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(c)}&cmlimit=100&cmtype=page&format=json&origin=*`)).json();
       const list = json.query && json.query.categorymembers;
       if (list && list.length) return list;
@@ -374,12 +404,25 @@ async function fetchCategoryMembers(key) {
   }
   return null;
 }
+
+const FILTH_TOASTS = ["🔞 get freaky, scholar","💦 wikipedia's dirty laundry, served hot","🍑 knowledge has never been this wet","😈 the library is horny tonight","🫦 read it and weep, you degenerate"];
+
 async function roll() {
   if (busy) return; busy = true; showLoader(); beep(1200);
   try {
     if (currentCat === "all") {
       const d = await (await fetch("https://en.wikipedia.org/api/rest_v1/page/random/summary")).json();
       render(await fetchPage(d.title), "✨ RANDOM FIND", "rand");
+    } else if (currentCat === "adult") {
+      /* ONE BUTTON, ALL THE FILTH — random adult category, then random article */
+      const pickKey = ADULT_CATS[Math.floor(Math.random() * ADULT_CATS.length)];
+      const m = await fetchCategoryMembers(pickKey);
+      if (m) {
+        render(await fetchPage(m[Math.floor(Math.random() * m.length)].title), "🔞 FILTH MODE", "adult");
+      } else {
+        render(await fetchPage(ADULT_POOL[Math.floor(Math.random() * ADULT_POOL.length)]), "🔞 FILTH MODE", "adult");
+      }
+      toast(FILTH_TOASTS[Math.floor(Math.random() * FILTH_TOASTS.length)]);
     } else {
       const key = currentCat.toLowerCase();
       const m = await fetchCategoryMembers(key);
@@ -433,7 +476,7 @@ if ($("trickOtd")) $("trickOtd").addEventListener("click", async () => {
 function toggleRoulette() {
   const b = $("rouletteBtn"); if (!b) return;
   if (rouletteTimer) { clearInterval(rouletteTimer); rouletteTimer = null; b.classList.remove("on"); b.textContent = "🔁 Auto Roulette"; toast("ROULETTE OFF"); beep(300,.15); }
-  else { roll(); rouletteTimer = setInterval(roll, 5000); b.classList.add("on"); b.textContent = "⏸ Roulette · 5s"; toast("🔁 ROULETTE ON"); beep(1500,.15); }
+  else { roll(); rouletteTimer = setInterval(roll, 5000); b.classList.add("on"); b.textContent = "⏸ Roulette · 5s"; toast(currentCat === "adult" ? "🔞 FILTH ROULETTE — GOD HELP YOU" : "🔁 ROULETTE ON"); beep(1500,.15); }
 }
 if ($("rouletteBtn")) $("rouletteBtn").addEventListener("click", toggleRoulette);
 
@@ -551,7 +594,7 @@ document.addEventListener("keydown", e => {
 function tickClock() { if (!$("clock")) return; const d = new Date(); $("clock").textContent = String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0")+":"+String(d.getUTCSeconds()).padStart(2,"0")+" UTC"; }
 setInterval(tickClock, 1000); tickClock();
 
-/* ============ THEME — sun icon fixed ============ */
+/* ============ THEME ============ */
 function applyTheme(t) {
   const theme = t === 'dark' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', theme);
