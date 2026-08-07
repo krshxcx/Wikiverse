@@ -7,9 +7,16 @@ let currentCat = "all", currentChannel = "Anything";
 let rouletteTimer = null, busy = false, current = null;
 let currentUser = null, userData = null, activeTab = "saved";
 
-/* EDIT: add or modify curated article pools here */
+/* Curated article pools */
 const WEIRD = ["Dancing_plague_of_1518","Great_Emu_War","Boston_Molasses_Disaster","Kentucky_meat_shower","Cadaver_Synod","War_of_the_Bucket","Erfurt_latrine_disaster","Toynbee_tiles","Pig_War_(1859)","List_of_unusual_deaths","Tanganyika_laughter_epidemic","London_Beer_Flood"];
 const MYSTERIES = ["Dyatlov_Pass_incident","Mary_Celeste","Voynich_manuscript","Tamam_Shud_case","Wow!_signal","D.B._Cooper","Jack_the_Ripper","Roanoke_Colony","Antikythera_mechanism","Nazca_Lines"];
+
+/* Category mapping for Wikipedia API */
+const CATEGORY_MAP = {
+  "mysteries": "Unsolved_mysteries",
+  "philosophy": "Branch_of_philosophy",
+  "sexuality": "Human_sexuality"
+};
 
 /* ============ HELPERS ============ */
 const escapeHtml = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
@@ -25,7 +32,7 @@ async function copyHelper(text, msg){
 
 /* ============ 8-BIT SOUND SYSTEM ============ */
 let audio = null, soundOn = localStorage.getItem("wk_sound") !== "0";
-$("sndBtn").textContent = soundOn ? "🔊 SOUND: ON" : "🔇 SOUND: OFF";
+if ($("sndBtn")) $("sndBtn").textContent = soundOn ? "🔊 SOUND: ON" : "🔇 SOUND: OFF";
 function beep(f = 880, d = 0.07){
   if (!soundOn) return;
   try {
@@ -38,13 +45,15 @@ function beep(f = 880, d = 0.07){
   } catch(e) {}
 }
 const jingle = () => { beep(660); setTimeout(() => beep(880), 90); setTimeout(() => beep(1320), 180); };
-$("sndBtn").addEventListener("click", function(){
-  soundOn = !soundOn; localStorage.setItem("wk_sound", soundOn ? "1" : "0");
-  this.textContent = soundOn ? "🔊 SOUND: ON" : "🔇 SOUND: OFF";
-  if (soundOn) beep(1000); this.blur();
-});
+if ($("sndBtn")) {
+  $("sndBtn").addEventListener("click", function(){
+    soundOn = !soundOn; localStorage.setItem("wk_sound", soundOn ? "1" : "0");
+    this.textContent = soundOn ? "🔊 SOUND: ON" : "🔇 SOUND: OFF";
+    if (soundOn) beep(1000); this.blur();
+  });
+}
 
-/* ============ LOCAL DATABASE + AUTH (works standalone, no server needed) ============ */
+/* ============ LOCAL DATABASE + AUTH ============ */
 const DB_KEY = "wikiverse_db_v1";
 const enc = p => btoa(unescape(encodeURIComponent(p)));
 function loadDB(){
@@ -62,51 +71,59 @@ function clearSession(){ localStorage.removeItem("wk_ses"); sessionStorage.remov
 
 function authFail(msg){
   toast("⚠ " + msg); beep(200, .2);
-  const w = $("authWin"); w.classList.remove("shake"); void w.offsetWidth; w.classList.add("shake");
+  const w = $("authWin"); if (w) { w.classList.remove("shake"); void w.offsetWidth; w.classList.add("shake"); }
 }
 
-$("togglePass1").addEventListener("click", () => { const i = $("loginPass"); i.type = i.type === "password" ? "text" : "password"; });
-$("togglePass2").addEventListener("click", () => { const i = $("regPass"); i.type = i.type === "password" ? "text" : "password"; });
-$("toRegister").addEventListener("click", e => { e.preventDefault(); $("loginForm").style.display = "none"; $("registerForm").style.display = "block"; beep(500); });
-$("toLogin").addEventListener("click", e => { e.preventDefault(); $("registerForm").style.display = "none"; $("loginForm").style.display = "block"; beep(500); });
+if ($("togglePass1")) $("togglePass1").addEventListener("click", () => { const i = $("loginPass"); i.type = i.type === "password" ? "text" : "password"; });
+if ($("togglePass2")) $("togglePass2").addEventListener("click", () => { const i = $("regPass"); i.type = i.type === "password" ? "text" : "password"; });
+if ($("toRegister")) $("toRegister").addEventListener("click", e => { e.preventDefault(); $("loginForm").style.display = "none"; $("registerForm").style.display = "block"; beep(500); });
+if ($("toLogin")) $("toLogin").addEventListener("click", e => { e.preventDefault(); $("registerForm").style.display = "none"; $("loginForm").style.display = "block"; beep(500); });
 
-$("loginForm").addEventListener("submit", e => {
-  e.preventDefault(); beep(700);
-  const u = $("loginUser").value.trim(), p = $("loginPass").value;
-  if (!u || !p) return authFail("ENTER USERNAME AND PASSWORD");
-  const db = loadDB();
-  if (!db.users[u] || db.users[u].password !== enc(p)) return authFail("INVALID CREDENTIALS");
-  setSession(u, $("loginRemember").checked);
-  currentUser = u; userData = db.data[u] || { saved:[], fav:[], liked:[] };
-  renderAuth(); toast("✅ WELCOME BACK, " + u.toUpperCase()); jingle();
-});
+if ($("loginForm")) {
+  $("loginForm").addEventListener("submit", e => {
+    e.preventDefault(); beep(700);
+    const u = $("loginUser").value.trim(), p = $("loginPass").value;
+    if (!u || !p) return authFail("ENTER USERNAME AND PASSWORD");
+    const db = loadDB();
+    if (!db.users[u] || db.users[u].password !== enc(p)) return authFail("INVALID CREDENTIALS");
+    setSession(u, $("loginRemember").checked);
+    currentUser = u; userData = db.data[u] || { saved:[], fav:[], liked:[] };
+    renderAuth(); toast("✅ WELCOME BACK, " + u.toUpperCase()); jingle();
+  });
+}
 
-$("registerForm").addEventListener("submit", e => {
-  e.preventDefault(); beep(700);
-  const u = $("regUser").value.trim(), p = $("regPass").value;
-  if (!/^[a-z0-9_]{3,16}$/i.test(u)) return authFail("USERNAME: 3–16 CHARS (A–Z, 0–9, _)");
-  if (p.length < 4) return authFail("PASSWORD TOO SHORT (MIN 4)");
-  const db = loadDB();
-  if (db.users[u]) return authFail("USERNAME ALREADY TAKEN");
-  db.users[u] = { password: enc(p) }; db.data[u] = { saved:[], fav:[], liked:[] };
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
-  setSession(u, true); currentUser = u; userData = db.data[u];
-  renderAuth(); toast("✅ ACCOUNT CREATED — WELCOME, " + u.toUpperCase()); jingle();
-});
+if ($("registerForm")) {
+  $("registerForm").addEventListener("submit", e => {
+    e.preventDefault(); beep(700);
+    const u = $("regUser").value.trim(), p = $("regPass").value;
+    if (!/^[a-z0-9_]{3,16}$/i.test(u)) return authFail("USERNAME: 3–16 CHARS (A–Z, 0–9, _)");
+    if (p.length < 4) return authFail("PASSWORD TOO SHORT (MIN 4)");
+    const db = loadDB();
+    if (db.users[u]) return authFail("USERNAME ALREADY TAKEN");
+    db.users[u] = { password: enc(p) }; db.data[u] = { saved:[], fav:[], liked:[] };
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    setSession(u, true); currentUser = u; userData = db.data[u];
+    renderAuth(); toast("✅ ACCOUNT CREATED — WELCOME, " + u.toUpperCase()); jingle();
+  });
+}
 
-$("logoutBtn").addEventListener("click", () => {
-  clearSession(); currentUser = null; userData = null;
-  renderAuth(); toast("LOGGED OUT"); beep(400);
-});
+if ($("logoutBtn")) {
+  $("logoutBtn").addEventListener("click", () => {
+    clearSession(); currentUser = null; userData = null;
+    renderAuth(); toast("LOGGED OUT"); beep(400);
+  });
+}
 
-$("deleteAccBtn").addEventListener("click", () => {
-  if (!currentUser) return;
-  if (!confirm("Permanently delete account @" + currentUser + " and all saved finds?")) return;
-  const db = loadDB(); delete db.users[currentUser]; delete db.data[currentUser];
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
-  clearSession(); currentUser = null; userData = null;
-  renderAuth(); toast("🗑 ACCOUNT DELETED"); beep(220, .25);
-});
+if ($("deleteAccBtn")) {
+  $("deleteAccBtn").addEventListener("click", () => {
+    if (!currentUser) return;
+    if (!confirm("Permanently delete account @" + currentUser + " and all saved finds?")) return;
+    const db = loadDB(); delete db.users[currentUser]; delete db.data[currentUser];
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    clearSession(); currentUser = null; userData = null;
+    renderAuth(); toast("🗑 ACCOUNT DELETED"); beep(220, .25);
+  });
+}
 
 document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", function(){
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -117,28 +134,32 @@ document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click
 function renderProfileList(type){
   const list = (userData && userData[type]) || [];
   const el = $("profileList");
+  if (!el) return;
   if (!list.length) { el.innerHTML = '<div class="p-empty">NOTHING HERE YET — GO DISCOVER ✦</div>'; return; }
   el.innerHTML = list.map(a =>
     `<div class="p-item" data-url="${escapeAttr(a.url)}"><span class="p-t">${escapeHtml(a.title)}</span><button class="p-del" data-title="${escapeAttr(a.title)}" title="Remove">✕</button></div>`
   ).join("");
 }
-$("profileList").addEventListener("click", e => {
-  const del = e.target.closest(".p-del");
-  if (del) { e.stopPropagation(); removeFromList(activeTab, del.dataset.title); toast("REMOVED"); return; }
-  const item = e.target.closest(".p-item");
-  if (item && item.dataset.url) { window.open(item.dataset.url, "_blank"); beep(900); }
-});
+
+if ($("profileList")) {
+  $("profileList").addEventListener("click", e => {
+    const del = e.target.closest(".p-del");
+    if (del) { e.stopPropagation(); removeFromList(activeTab, del.dataset.title); toast("REMOVED"); return; }
+    const item = e.target.closest(".p-item");
+    if (item && item.dataset.url) { window.open(item.dataset.url, "_blank"); beep(900); }
+  });
+}
 
 function renderCounts(){
-  $("cntSaved").textContent = (userData && userData.saved.length) || 0;
-  $("cntFav").textContent = (userData && userData.fav.length) || 0;
-  $("cntLiked").textContent = (userData && userData.liked.length) || 0;
+  if ($("cntSaved")) $("cntSaved").textContent = (userData && userData.saved.length) || 0;
+  if ($("cntFav")) $("cntFav").textContent = (userData && userData.fav.length) || 0;
+  if ($("cntLiked")) $("cntLiked").textContent = (userData && userData.liked.length) || 0;
 }
 function addToList(type, title, url){
   if (!currentUser) { toast("⚠ SIGN IN TO USE THIS"); beep(200, .15); return false; }
   if (userData[type].some(a => a.title === title)) return null;
   userData[type].unshift({ title, url }); persistUser(); renderCounts(); renderStats();
-  if (document.getElementById("profileView").style.display !== "none") renderProfileList(activeTab);
+  if ($("profileView") && $("profileView").style.display !== "none") renderProfileList(activeTab);
   return true;
 }
 function removeFromList(type, title){
@@ -148,18 +169,18 @@ function removeFromList(type, title){
 }
 function renderAuth(){
   const logged = !!currentUser;
-  $("authForms").style.display = logged ? "none" : "block";
-  $("profileView").style.display = logged ? "block" : "none";
+  if ($("authForms")) $("authForms").style.display = logged ? "none" : "block";
+  if ($("profileView")) $("profileView").style.display = logged ? "block" : "none";
   if (logged) {
-    $("welcomeUser").textContent = "@" + currentUser;
-    $("avaBig").textContent = currentUser[0].toUpperCase();
+    if ($("welcomeUser")) $("welcomeUser").textContent = "@" + currentUser;
+    if ($("avaBig")) $("avaBig").textContent = currentUser[0].toUpperCase();
     renderCounts(); renderProfileList(activeTab);
   }
-  $("userChipName").textContent = logged ? currentUser.toUpperCase() : "PROFILE";
-  $("userChipAva").textContent = logged ? currentUser[0].toUpperCase() : "◌";
+  if ($("userChipName")) $("userChipName").textContent = logged ? currentUser.toUpperCase() : "PROFILE";
+  if ($("userChipAva")) $("userChipAva").textContent = logged ? currentUser[0].toUpperCase() : "◌";
   renderStats(); updateLikeFavState();
 }
-$("userChip").addEventListener("click", () => $("authWin").scrollIntoView({ behavior:"smooth", block:"center" }));
+if ($("userChip")) $("userChip").addEventListener("click", () => $("authWin") && $("authWin").scrollIntoView({ behavior:"smooth", block:"center" }));
 
 /* ============ STATS ============ */
 let stats = { total:0, streak:0, last:"" };
@@ -177,10 +198,10 @@ function bumpStats(){
   renderStats();
 }
 function renderStats(){
-  $("statTotal").textContent = stats.total;
-  $("statSession").textContent = stats.session;
-  $("statStreak").textContent = (stats.streak || 0) + "d";
-  $("statSaved").textContent = currentUser ? (userData.saved.length + userData.fav.length + userData.liked.length) : "—";
+  if ($("statTotal")) $("statTotal").textContent = stats.total;
+  if ($("statSession")) $("statSession").textContent = stats.session;
+  if ($("statStreak")) $("statStreak").textContent = (stats.streak || 0) + "d";
+  if ($("statSaved")) $("statSaved").textContent = currentUser ? (userData.saved.length + userData.fav.length + userData.liked.length) : "—";
 }
 
 /* ============ FETCH ENGINE ============ */
@@ -202,51 +223,55 @@ async function fetchPage(t){
   return data;
 }
 
-const showLoader = () => { $("loader").classList.add("show"); $("result").classList.remove("show"); };
+const showLoader = () => { if ($("loader")) $("loader").classList.add("show"); if ($("result")) $("result").classList.remove("show"); };
 
 function render(a, badge, kind){
   current = a; stopSpeak();
-  const b = $("badge"); b.textContent = badge; b.className = "badge k-" + (kind || "rand");
-  $("title").textContent = a.title;
-  $("extract").innerHTML = a.extract || "<p>No content available for this entry.</p>";
+  const b = $("badge"); if (b) { b.textContent = badge; b.className = "badge k-" + (kind || "rand"); }
+  if ($("title")) $("title").textContent = a.title;
+  if ($("extract")) $("extract").innerHTML = a.extract || "<p>No content available for this entry.</p>";
   const thumb = $("thumb");
-  if (a.img) { thumb.src = a.img; thumb.style.display = "block"; } else thumb.style.display = "none";
-  $("wikiLink").href = a.url;
-  const words = ($("extract").innerText || "").trim().split(/\s+/).filter(Boolean).length;
-  $("metaLine").textContent = `≈ ${Math.max(1, Math.round(words / 220))} MIN READ · ${words.toLocaleString()} WORDS`;
-  $("extract").querySelectorAll("a").forEach(l => {
-    const h = l.getAttribute("href") || "";
-    if (!h.startsWith("/wiki/")) { l.target = "_blank"; l.rel = "noopener"; }
-  });
-  $("loader").classList.remove("show");
-  $("result").classList.add("show");
-  const cb = $("cardBody"); cb.classList.remove("pop"); void cb.offsetWidth; cb.classList.add("pop");
-  cb.scrollTop = 0; onScrollProgress();
+  if (thumb) { if (a.img) { thumb.src = a.img; thumb.style.display = "block"; } else thumb.style.display = "none"; }
+  if ($("wikiLink")) $("wikiLink").href = a.url;
+  const words = (($("extract") && $("extract").innerText) || "").trim().split(/\s+/).filter(Boolean).length;
+  if ($("metaLine")) $("metaLine").textContent = `≈ ${Math.max(1, Math.round(words / 220))} MIN READ · ${words.toLocaleString()} WORDS`;
+  if ($("extract")) {
+    $("extract").querySelectorAll("a").forEach(l => {
+      const h = l.getAttribute("href") || "";
+      if (!h.startsWith("/wiki/")) { l.target = "_blank"; l.rel = "noopener"; }
+    });
+  }
+  if ($("loader")) $("loader").classList.remove("show");
+  if ($("result")) $("result").classList.add("show");
+  const cb = $("cardBody");
+  if (cb) { cb.classList.remove("pop"); void cb.offsetWidth; cb.classList.add("pop"); cb.scrollTop = 0; }
+  onScrollProgress();
   updateLikeFavState(); pushHistory(a.title); bumpStats(); jingle();
 }
 
 function showError(msg){
   busy = false; stopSpeak();
-  $("loader").classList.remove("show");
-  const b = $("badge"); b.textContent = "⚠ ERROR"; b.className = "badge k-err";
-  $("title").textContent = "Something broke";
-  $("metaLine").textContent = "PRESS NEXT TO RETRY";
-  $("extract").innerHTML = `<p>${escapeHtml(msg)}</p>`;
-  $("thumb").style.display = "none";
-  $("wikiLink").href = "https://en.wikipedia.org";
-  $("result").classList.add("show");
+  if ($("loader")) $("loader").classList.remove("show");
+  const b = $("badge"); if (b) { b.textContent = "⚠ ERROR"; b.className = "badge k-err"; }
+  if ($("title")) $("title").textContent = "Something broke";
+  if ($("metaLine")) $("metaLine").textContent = "PRESS NEXT TO RETRY";
+  if ($("extract")) $("extract").innerHTML = `<p>${escapeHtml(msg)}</p>`;
+  if ($("thumb")) $("thumb").style.display = "none";
+  if ($("wikiLink")) $("wikiLink").href = "https://en.wikipedia.org";
+  if ($("result")) $("result").classList.add("show");
   beep(220, .2);
 }
 
-/* inline wiki-link navigation: clicking article links loads them in the viewer */
-$("extract").addEventListener("click", e => {
-  const a = e.target.closest("a"); if (!a) return;
-  const h = a.getAttribute("href") || "";
-  if (h.startsWith("/wiki/") && !h.slice(6).includes(":") && !a.classList.contains("new")) {
-    e.preventDefault();
-    loadByTitle(decodeURIComponent(h.slice(6)), "🔗 FROM LINK", "link");
-  }
-});
+if ($("extract")) {
+  $("extract").addEventListener("click", e => {
+    const a = e.target.closest("a"); if (!a) return;
+    const h = a.getAttribute("href") || "";
+    if (h.startsWith("/wiki/") && !h.slice(6).includes(":") && !a.classList.contains("new")) {
+      e.preventDefault();
+      loadByTitle(decodeURIComponent(h.slice(6)), "🔗 FROM LINK", "link");
+    }
+  });
+}
 
 /* ============ DISCOVERY MODES ============ */
 async function roll(){
@@ -256,7 +281,8 @@ async function roll(){
       const d = await (await fetch("https://en.wikipedia.org/api/rest_v1/page/random/summary")).json();
       render(await fetchPage(d.title), "✨ RANDOM FIND", "rand");
     } else {
-      const res = await fetch(`${API}?action=query&list=categorymembers&cmtitle=Category:${currentCat}&cmlimit=100&cmtype=page&format=json&origin=*`);
+      const wikiCat = CATEGORY_MAP[currentCat.toLowerCase()] || currentCat;
+      const res = await fetch(`${API}?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(wikiCat)}&cmlimit=100&cmtype=page&format=json&origin=*`);
       const m = (await res.json()).query.categorymembers;
       if (!m || !m.length) throw new Error("empty");
       render(await fetchPage(m[Math.floor(Math.random() * m.length)].title), currentChannel.toUpperCase(), "cat");
@@ -272,63 +298,94 @@ async function loadByTitle(t, badge, kind){
   busy = false;
 }
 
-$("trickRandom").addEventListener("click", () => roll());
-$("nextBtn").addEventListener("click", () => roll());
+if ($("trickRandom")) $("trickRandom").addEventListener("click", () => roll());
+if ($("nextBtn")) $("nextBtn").addEventListener("click", () => roll());
 
-$("trickWeird").addEventListener("click", async () => {
-  if (busy) return; busy = true; showLoader(); beep(500);
-  try { render(await fetchPage(WEIRD[Math.floor(Math.random() * WEIRD.length)]), "🤪 CERTIFIED WEIRD", "weird"); }
-  catch(e) { showError("Weirdness unavailable."); }
-  busy = false;
-});
+if ($("trickWeird")) {
+  $("trickWeird").addEventListener("click", async () => {
+    if (busy) return; busy = true; showLoader(); beep(500);
+    try { render(await fetchPage(WEIRD[Math.floor(Math.random() * WEIRD.length)]), "🤪 CERTIFIED WEIRD", "weird"); }
+    catch(e) { showError("Weirdness unavailable."); }
+    busy = false;
+  });
+}
 
-$("trickMystery").addEventListener("click", async () => {
-  if (busy) return; busy = true; showLoader(); beep(400);
-  try { render(await fetchPage(MYSTERIES[Math.floor(Math.random() * MYSTERIES.length)]), "🔮 UNSOLVED MYSTERY", "mystery"); }
-  catch(e) { showError("Mystery vanished into the void."); }
-  busy = false;
-});
+if ($("trickMystery")) {
+  $("trickMystery").addEventListener("click", async () => {
+    if (busy) return; busy = true; showLoader(); beep(400);
+    try { render(await fetchPage(MYSTERIES[Math.floor(Math.random() * MYSTERIES.length)]), "🔮 UNSOLVED MYSTERY", "mystery"); }
+    catch(e) { showError("Mystery vanished into the void."); }
+    busy = false;
+  });
+}
 
-$("trickTrail").addEventListener("click", async () => {
-  if (busy) return; busy = true; showLoader(); beep(700);
-  try {
-    const d = await (await fetch("https://en.wikipedia.org/api/rest_v1/page/random/summary")).json();
-    const full = await fetchPage(d.title);
-    render({ ...full, extract: "<p class=\"role-note\"><i>Getting to Philosophy: click the first link (skip parentheses) in any article, repeat — you will almost always land on Philosophy. Try it right here, links are live.</i></p>" + full.extract }, "🧭 PHILOSOPHY TRAIL", "trail");
-  } catch(e) { showError("Trail closed today."); }
-  busy = false;
-});
+if ($("trickTrail")) {
+  $("trickTrail").addEventListener("click", async () => {
+    if (busy) return; busy = true; showLoader(); beep(700);
+    try {
+      const d = await (await fetch("https://en.wikipedia.org/api/rest_v1/page/random/summary")).json();
+      const full = await fetchPage(d.title);
+      render({ ...full, extract: "<p class=\"role-note\"><i>Getting to Philosophy: click the first link (skip parentheses) in any article, repeat — you will almost always land on Philosophy. Try it right here, links are live.</i></p>" + full.extract }, "🧭 PHILOSOPHY TRAIL", "trail");
+    } catch(e) { showError("Trail closed today."); }
+    busy = false;
+  });
+}
 
-$("trickPotd").addEventListener("click", async () => {
-  if (busy) return; busy = true; showLoader(); beep(900);
-  try {
-    const d = await (await fetch("https://api.wikimedia.org/feed/v1/wikipedia/en/featured/today")).json();
-    render({
-      title: (d.image && d.image.description && d.image.description.text) || "Featured Image",
-      extract: `<img src="${(d.image && (d.image.thumbnail && d.image.thumbnail.source)) || (d.image && d.image.source)}" alt=""><p>${(d.tfa && d.tfa.extract) || ((d.image && d.image.description && d.image.description.text) || "")}</p>`,
-      img: null,
-      url: d.tfa && d.tfa.content_urls ? d.tfa.content_urls.desktop.page : "https://en.wikipedia.org/wiki/Wikipedia:Picture_of_the_day"
-    }, "🖼️ PICTURE OF THE DAY", "media");
-  } catch(e) { showError("Picture unavailable."); }
-  busy = false;
-});
+/* FIXED POTD FUNCTION */
+if ($("trickPotd")) {
+  $("trickPotd").addEventListener("click", async () => {
+    if (busy) return; busy = true; showLoader(); beep(900);
+    try {
+      const today = new Date();
+      const yyyy = today.getUTCFullYear();
+      const mm = String(today.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(today.getUTCDate()).padStart(2, "0");
+      
+      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/feed/featured/${yyyy}/${mm}/${dd}`);
+      if (!res.ok) throw new Error("Featured API failed");
+      const d = await res.json();
+      
+      let imgUrl = "", titleText = "Picture of the Day", descText = "";
+      if (d.image) {
+        imgUrl = d.image.image ? d.image.image.source : (d.image.thumbnail ? d.image.thumbnail.source : "");
+        titleText = d.image.title ? d.image.title.replace(/^File:/i, "").replace(/_/g, " ") : "Featured Picture";
+        descText = (d.image.description && d.image.description.text) || "";
+      } else if (d.tfa) {
+        imgUrl = d.tfa.thumbnail ? d.tfa.thumbnail.source : "";
+        titleText = d.tfa.title;
+        descText = d.tfa.extract;
+      }
+      
+      render({
+        title: titleText,
+        extract: imgUrl ? `<div style="text-align:center;margin-bottom:15px;"><img src="${imgUrl}" style="max-width:100%;max-height:400px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);" alt="${escapeAttr(titleText)}"></div><p>${descText}</p>` : `<p>${descText}</p>`,
+        img: null,
+        url: d.tfa && d.tfa.content_urls ? d.tfa.content_urls.desktop.page : "https://en.wikipedia.org/wiki/Wikipedia:Picture_of_the_day"
+      }, "🖼️ PICTURE OF THE DAY", "media");
+    } catch(e) { showError("Picture unavailable."); }
+    busy = false;
+  });
+}
 
-$("trickOtd").addEventListener("click", async () => {
-  if (busy) return; busy = true; showLoader(); beep(600);
-  try {
-    const n = new Date();
-    const mm = String(n.getMonth() + 1).padStart(2, "0"), dd = String(n.getDate()).padStart(2, "0");
-    const d = await (await fetch(`https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/events/${mm}/${dd}`)).json();
-    const ev = d.events[Math.floor(Math.random() * d.events.length)];
-    const page = ev.pages && ev.pages[0];
-    const full = page ? await fetchPage(page.title) : { title: "On This Day", extract: ev.text, img: null, url: "https://en.wikipedia.org" };
-    render({ ...full, extract: `<p class="role-note"><i>${escapeHtml(ev.text)}</i></p>` + (full.extract || "") }, `📅 ON THIS DAY · ${ev.year}`, "media");
-  } catch(e) { showError("History unavailable."); }
-  busy = false;
-});
+if ($("trickOtd")) {
+  $("trickOtd").addEventListener("click", async () => {
+    if (busy) return; busy = true; showLoader(); beep(600);
+    try {
+      const n = new Date();
+      const mm = String(n.getMonth() + 1).padStart(2, "0"), dd = String(n.getDate()).padStart(2, "0");
+      const d = await (await fetch(`https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/events/${mm}/${dd}`)).json();
+      const ev = d.events[Math.floor(Math.random() * d.events.length)];
+      const page = ev.pages && ev.pages[0];
+      const full = page ? await fetchPage(page.title) : { title: "On This Day", extract: ev.text, img: null, url: "https://en.wikipedia.org" };
+      render({ ...full, extract: `<p class="role-note"><i>${escapeHtml(ev.text)}</i></p>` + (full.extract || "") }, `📅 ON THIS DAY · ${ev.year}`, "media");
+    } catch(e) { showError("History unavailable."); }
+    busy = false;
+  });
+}
 
 function toggleRoulette(){
   const b = $("rouletteBtn");
+  if (!b) return;
   if (rouletteTimer) {
     clearInterval(rouletteTimer); rouletteTimer = null;
     b.classList.remove("on"); b.textContent = "🔁 Auto Roulette";
@@ -339,14 +396,14 @@ function toggleRoulette(){
     toast("🔁 ROULETTE ON — NEW FIND EVERY 5S"); beep(1500, .15);
   }
 }
-$("rouletteBtn").addEventListener("click", toggleRoulette);
+if ($("rouletteBtn")) $("rouletteBtn").addEventListener("click", toggleRoulette);
 
 /* ============ CATEGORY PILLS ============ */
 document.querySelectorAll(".pill").forEach(p => p.addEventListener("click", () => {
   document.querySelectorAll(".pill").forEach(x => x.classList.remove("active"));
   p.classList.add("active");
-  currentCat = p.dataset.cat; currentChannel = p.dataset.name;
-  $("vibeLabel").textContent = currentChannel;
+  currentCat = p.dataset.cat; currentChannel = p.dataset.name || p.textContent.replace(/^[^\w\s]+/, '').trim();
+  if ($("vibeLabel")) $("vibeLabel").textContent = currentChannel;
   roll(); beep(800);
 }));
 
@@ -354,6 +411,7 @@ document.querySelectorAll(".pill").forEach(p => p.addEventListener("click", () =
 let scanTimer = null;
 async function doSearch(q){
   const box = $("scanResults");
+  if (!box) return;
   try {
     const res = await fetch(`${API}?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=6&format=json&origin=*`);
     const list = (await res.json()).query.search;
@@ -362,36 +420,43 @@ async function doSearch(q){
     box.classList.add("show");
   } catch(e) { box.classList.remove("show"); }
 }
-$("scanInput").addEventListener("input", function(){
-  const q = this.value.trim();
-  clearTimeout(scanTimer);
-  if (q.length < 2) { $("scanResults").classList.remove("show"); return; }
-  scanTimer = setTimeout(() => doSearch(q), 320);
-});
-$("scanInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    const first = $("scanResults").querySelector(".scan-item");
-    if (first) { openScan(first.dataset.title); }
-  }
-});
-$("scanResults").addEventListener("click", e => {
-  const item = e.target.closest(".scan-item");
-  if (item) openScan(item.dataset.title);
-});
+
+if ($("scanInput")) {
+  $("scanInput").addEventListener("input", function(){
+    const q = this.value.trim();
+    clearTimeout(scanTimer);
+    if (q.length < 2) { if ($("scanResults")) $("scanResults").classList.remove("show"); return; }
+    scanTimer = setTimeout(() => doSearch(q), 320);
+  });
+  $("scanInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const first = $("scanResults") ? $("scanResults").querySelector(".scan-item") : null;
+      if (first) openScan(first.dataset.title);
+    }
+  });
+}
+
+if ($("scanResults")) {
+  $("scanResults").addEventListener("click", e => {
+    const item = e.target.closest(".scan-item");
+    if (item) openScan(item.dataset.title);
+  });
+}
+
 function openScan(t){
-  $("scanResults").classList.remove("show");
-  $("scanInput").value = t; $("scanInput").blur();
+  if ($("scanResults")) $("scanResults").classList.remove("show");
+  if ($("scanInput")) { $("scanInput").value = t; $("scanInput").blur(); }
   loadByTitle(t, "🔍 SEARCH RESULT", "search");
 }
-document.addEventListener("click", e => { if (!e.target.closest(".scan-wrap")) $("scanResults").classList.remove("show"); });
+document.addEventListener("click", e => { if (!e.target.closest(".scan-wrap") && $("scanResults")) $("scanResults").classList.remove("show"); });
 
 /* ============ ARTICLE ACTIONS ============ */
 function updateLikeFavState(){
   const has = t => currentUser && userData && current && userData[t].some(a => a.title === current.title);
   const lk = has("liked"), fv = has("fav");
-  $("likeBtn").classList.toggle("on", !!lk); $("likeBtn").textContent = lk ? "❤️" : "🤍";
-  $("favBtn").classList.toggle("on", !!fv); $("favBtn").textContent = fv ? "★" : "☆";
+  if ($("likeBtn")) { $("likeBtn").classList.toggle("on", !!lk); $("likeBtn").textContent = lk ? "❤️" : "🤍"; }
+  if ($("favBtn")) { $("favBtn").classList.toggle("on", !!fv); $("favBtn").textContent = fv ? "★" : "☆"; }
 }
 function toggleList(type){
   if (!current) return;
@@ -401,47 +466,47 @@ function toggleList(type){
   else { addToList(type, current.title, current.url); toast(type === "liked" ? "❤️ LIKED" : "★ ADDED TO FAVORITES"); beep(1300); }
   updateLikeFavState();
 }
-$("likeBtn").addEventListener("click", () => toggleList("liked"));
-$("favBtn").addEventListener("click", () => toggleList("fav"));
+if ($("likeBtn")) $("likeBtn").addEventListener("click", () => toggleList("liked"));
+if ($("favBtn")) $("favBtn").addEventListener("click", () => toggleList("fav"));
 
-$("saveBtn").addEventListener("click", () => {
-  if (!current) return;
-  if (!currentUser) { toast("⚠ SIGN IN TO SAVE ARTICLES"); beep(200, .15); return; }
-  const r = addToList("saved", current.title, current.url);
-  if (r === null) toast("💾 ALREADY SAVED");
-  else if (r) { toast("💾 SAVED TO PROFILE"); beep(1400); }
-});
+if ($("saveBtn")) {
+  $("saveBtn").addEventListener("click", () => {
+    if (!current) return;
+    if (!currentUser) { toast("⚠ SIGN IN TO SAVE ARTICLES"); beep(200, .15); return; }
+    const r = addToList("saved", current.title, current.url);
+    if (r === null) toast("💾 ALREADY SAVED");
+    else if (r) { toast("💾 SAVED TO PROFILE"); beep(1400); }
+  });
+}
 
-$("copyTextBtn").addEventListener("click", () => {
-  if (!current) return;
-  copyHelper($("extract").innerText, "📄 TEXT COPIED"); beep(1100);
-});
-$("copyLinkBtn").addEventListener("click", () => {
-  if (!current) return;
-  copyHelper(current.url, "🔗 LINK COPIED"); beep(1100);
-});
-$("shareBtn").addEventListener("click", () => {
+if ($("copyTextBtn")) $("copyTextBtn").addEventListener("click", () => { if (current && $("extract")) { copyHelper($("extract").innerText, "📄 TEXT COPIED"); beep(1100); } });
+if ($("copyLinkBtn")) $("copyLinkBtn").addEventListener("click", () => { if (current) { copyHelper(current.url, "🔗 LINK COPIED"); beep(1100); } });
+if ($("shareBtn")) $("shareBtn").addEventListener("click", () => {
   if (!current) return;
   if (navigator.share) navigator.share({ title: current.title, url: current.url }).catch(() => {});
   else copyHelper(current.url, "📡 LINK COPIED FOR SHARING");
   beep(1100);
 });
 
-/* read aloud */
+/* Read Aloud */
 let speaking = false;
 function stopSpeak(){
   try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch(e) {}
-  speaking = false; $("speakBtn").classList.remove("on"); $("speakBtn").textContent = "🔉";
+  speaking = false;
+  if ($("speakBtn")) { $("speakBtn").classList.remove("on"); $("speakBtn").textContent = "🔉"; }
 }
-$("speakBtn").addEventListener("click", () => {
-  if (!current || !("speechSynthesis" in window)) { toast("⚠ SPEECH NOT SUPPORTED"); return; }
-  if (speaking) { stopSpeak(); return; }
-  const u = new SpeechSynthesisUtterance(current.title + ". " + $("extract").innerText.slice(0, 2500));
-  u.rate = 1; u.onend = stopSpeak; u.onerror = stopSpeak;
-  speechSynthesis.speak(u);
-  speaking = true; $("speakBtn").classList.add("on"); $("speakBtn").textContent = "⏹";
-  toast("🔉 READING ALOUD…");
-});
+if ($("speakBtn")) {
+  $("speakBtn").addEventListener("click", () => {
+    if (!current || !("speechSynthesis" in window)) { toast("⚠ SPEECH NOT SUPPORTED"); return; }
+    if (speaking) { stopSpeak(); return; }
+    const textToRead = current.title + ". " + (($("extract") && $("extract").innerText) || "").slice(0, 2500);
+    const u = new SpeechSynthesisUtterance(textToRead);
+    u.rate = 1; u.onend = stopSpeak; u.onerror = stopSpeak;
+    speechSynthesis.speak(u);
+    speaking = true; $("speakBtn").classList.add("on"); $("speakBtn").textContent = "⏹";
+    toast("🔉 READING ALOUD…");
+  });
+}
 
 /* ============ HISTORY ============ */
 const hist = [];
@@ -452,22 +517,26 @@ function pushHistory(t){
   renderHistory();
 }
 function renderHistory(){
+  if (!$("histList")) return;
   $("histList").innerHTML = hist.length
     ? hist.map(t => `<button class="chip" data-title="${escapeAttr(t)}">${escapeHtml(t)}</button>`).join("")
     : '<span class="hist-empty">NO ARTICLES YET — START EXPLORING…</span>';
 }
-$("histList").addEventListener("click", e => {
-  const c = e.target.closest(".chip");
-  if (c) loadByTitle(c.dataset.title, "↩ FROM HISTORY", "link");
-});
+if ($("histList")) {
+  $("histList").addEventListener("click", e => {
+    const c = e.target.closest(".chip");
+    if (c) loadByTitle(c.dataset.title, "↩ FROM HISTORY", "link");
+  });
+}
 
 /* ============ READING PROGRESS ============ */
 function onScrollProgress(){
   const cb = $("cardBody");
+  if (!cb || !$("progressFill")) return;
   const max = cb.scrollHeight - cb.clientHeight;
   $("progressFill").style.width = (max > 0 ? (cb.scrollTop / max) * 100 : 0) + "%";
 }
-$("cardBody").addEventListener("scroll", onScrollProgress, { passive:true });
+if ($("cardBody")) $("cardBody").addEventListener("scroll", onScrollProgress, { passive:true });
 
 /* ============ KEYBOARD SHORTCUTS ============ */
 document.addEventListener("keydown", e => {
@@ -477,13 +546,15 @@ document.addEventListener("keydown", e => {
   else if (e.code === "KeyR") toggleRoulette();
   else if (e.code === "KeyL") toggleList("liked");
   else if (e.code === "KeyF") toggleList("fav");
-  else if (e.code === "KeyS") $("saveBtn").click();
-  else if (e.key === "/") { e.preventDefault(); $("scanInput").focus(); }
+  else if (e.code === "KeyS" && $("saveBtn")) $("saveBtn").click();
+  else if (e.key === "/" && $("scanInput")) { e.preventDefault(); $("scanInput").focus(); }
 });
 
-/* ============ STARFIELD (subtle, light) ============ */
+/* ============ STARFIELD ============ */
 (function(){
-  const cv = $("stars"), cx = cv.getContext("2d");
+  const cv = $("stars");
+  if (!cv) return;
+  const cx = cv.getContext("2d");
   let w, h, starArr = [], shots = [], tick = 0;
   function rs(){
     w = cv.width = innerWidth; h = cv.height = innerHeight; starArr = [];
@@ -519,29 +590,31 @@ document.addEventListener("keydown", e => {
 
 /* ============ CLOCK ============ */
 function tickClock(){
+  if (!$("clock")) return;
   const d = new Date();
   $("clock").textContent = String(d.getUTCHours()).padStart(2,"0") + ":" + String(d.getUTCMinutes()).padStart(2,"0") + ":" + String(d.getUTCSeconds()).padStart(2,"0") + " UTC";
 }
 setInterval(tickClock, 1000); tickClock();
 
-/* ============ THEME (dark/light) ============ */
+/* ============ THEME ============ */
 function applyTheme(t){
   const theme = t === 'dark' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', theme);
   try { localStorage.setItem('wk_theme', theme); } catch(e) {}
   const btn = $("themeBtn"); if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
 }
-if ($("themeBtn")) $("themeBtn").addEventListener('click', function(){
-  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-  const next = cur === 'dark' ? 'light' : 'dark'; applyTheme(next); beep(600);
-});
+if ($("themeBtn")) {
+  $("themeBtn").addEventListener('click', function(){
+    const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    const next = cur === 'dark' ? 'light' : 'dark'; applyTheme(next); beep(600);
+  });
+}
 
 /* ============ INIT ============ */
 (function init(){
   const db = loadDB();
   const su = getSession();
   if (su && db.users[su]) { currentUser = su; userData = db.data[su] || { saved:[], fav:[], liked:[] }; }
-  // apply saved theme early
   try { const savedTheme = localStorage.getItem('wk_theme') || 'light'; applyTheme(savedTheme); } catch(e) {}
   renderAuth(); renderHistory(); renderStats();
   roll();
