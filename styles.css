@@ -266,3 +266,96 @@ button{font-family:inherit}
   margin: 10px 0;
   max-width: 100%;
 }
+
+
+
+/* Fix 1: Cap sidebar to viewport and enable independent scrolling */
+.sidebar, 
+aside, 
+.left-panel {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain; /* Prevents scroll-chaining to main body */
+  padding-bottom: 20px;
+}
+
+/* Fix 2: Prevent Flexbox layout stretching */
+.layout-container, 
+main {
+  display: flex;
+  align-items: flex-start; /* Ensures sidebar doesn't force-stretch to article height */
+  height: 100vh;
+  overflow: hidden; /* Caps body scrolling so panels scroll individually */
+}
+
+/* Fix 3: Image zoom cursor indicator */
+#extract img, #thumb {
+  cursor: zoom-in;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+#extract img:hover, #thumb:hover {
+  opacity: 0.9;
+  transform: scale(1.01);
+}  
+
+/* Fix 1: Independent Sidebar Scrolling */
+.sidebar, 
+aside, 
+.left-panel {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  overscroll-behavior: contain; /* Prevents scrolling from chaining to the window */
+  position: sticky;
+  top: 70px;
+}
+
+/* Fix 2: Prevent full layout stretching */
+body, html {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+/* Fix 3: Image zoom cursor styling */
+#extract img, #thumb {
+  cursor: zoom-in !important;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+#extract img:hover, #thumb:hover {
+  opacity: 0.9;
+  transform: scale(1.01);
+}
+
+/* Center all article inline images, figures, and thumbnails */
+#extract .thumb,
+#extract figure,
+#extract .image,
+#extract .mw-file-description {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 20px auto !important;
+  float: none !important;
+  text-align: center !important;
+}
+
+#extract img {
+  display: block !important;
+  margin: 0 auto !important;
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 6px;
+  cursor: zoom-in !important;
+}
+
+/* Center infoboxes and data tables */
+#extract table.infobox,
+#extract table.wikitable {
+  margin: 20px auto !important;
+  float: none !important;
+  clear: both !important;
+}
