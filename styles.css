@@ -238,3 +238,31 @@ button{font-family:inherit}
   .content{flex-direction:column}
   .thumb{max-width:100%}
 }
+
+#extract img {
+  max-width: 100%;
+  height: auto;
+}
+
+#extract table.infobox, 
+#extract table.wikitable {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 1em 0 !important;
+  float: none !important;
+  clear: both;
+  overflow-x: auto;
+  display: block;
+  border-collapse: collapse;
+}
+
+#extract table.wikitable td, 
+#extract table.wikitable th {
+  padding: 6px 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+#extract .thumb {
+  margin: 10px 0;
+  max-width: 100%;
+}
