@@ -9,14 +9,18 @@ let currentUser = null, userData = null, activeTab = "saved";
 
 const WEIRD = ["Dancing_plague_of_1518","Great_Emu_War","Boston_Molasses_Disaster","Kentucky_meat_shower","Cadaver_Synod","War_of_the_Bucket","Erfurt_latrine_disaster","Toynbee_tiles","Pig_War_(1859)","List_of_unusual_deaths","Tanganyika_laughter_epidemic","London_Beer_Flood"];
 const MYSTERIES = ["Dyatlov_Pass_incident","Mary_Celeste","Voynich_manuscript","Tamam_Shud_case","Wow!_signal","D.B._Cooper","Jack_the_Ripper","Roanoke_Colony","Antikythera_mechanism","Nazca_Lines"];
+const PHILOSOPHY = ["Philosophy_of_mind","Epistemology","Metaphysics","Ethics","Stoicism","Existentialism","Nihilism","Plato","Aristotle","Immanuel_Kant","Free_will","Ship_of_Theseus","Trolley_problem","Allegory_of_the_cave","Absurdism","Utilitarianism","Determinism","Consequentialism","Virtue_ethics","Simulated_reality"];
 
-const CATEGORY_MAP = {
-  "all": null,
-  "philosophy": "Branch_of_philosophy", "psychology": "Psychology", "biology": "Biology",
-  "physics": "Physics", "mathematics": "Mathematics", "history": "History", "art": "Art",
-  "music": "Music", "geography": "Geography", "technology": "Technology",
-  "astronomy": "Astronomy", "human_sexuality": "Human_sexuality", "unsolved_mysteries": "Unsolved_mysteries"
+/* Candidate chains — if a Wikipedia category is empty/missing, try the next, then fall back to curated pools */
+const CATEGORY_CANDIDATES = {
+  philosophy: ["Branches_of_philosophy", "Philosophy"],
+  psychology: ["Psychology"], biology: ["Biology"], physics: ["Physics"],
+  mathematics: ["Mathematics"], history: ["History"], art: ["Art"], music: ["Music"],
+  geography: ["Geography"], technology: ["Technology"], astronomy: ["Astronomy"],
+  human_sexuality: ["Human_sexuality"],
+  unsolved_mysteries: ["Unsolved_mysteries", "Mysteries", "Paranormal", "Conspiracy_theories"]
 };
+const FALLBACK_POOLS = { philosophy: PHILOSOPHY, unsolved_mysteries: MYSTERIES };
 
 /* ============ HELPERS ============ */
 const escapeHtml = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
@@ -28,49 +32,31 @@ async function copyHelper(text, msg) {
   catch { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); toast(msg); } catch { toast("⚠ CLIPBOARD BLOCKED"); } ta.remove(); }
 }
 
-/* ============ SANITIZE — UPGRADE IMAGES TO 960px ============ */
+/* ============ SANITIZE ============ */
 function sanitizeWikiHtml(htmlStr) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlStr, 'text/html');
-
-  /* Fix protocol-relative URLs */
   doc.querySelectorAll('img, source, a, iframe, svg').forEach(el => {
     ['src', 'srcset', 'href'].forEach(attr => {
       const val = el.getAttribute(attr);
       if (val && val.startsWith('//')) el.setAttribute(attr, 'https:' + val);
     });
   });
-
-  /* IMAGE UPGRADE: 220px thumbs → 960px, strip inline size constraints */
   doc.querySelectorAll('img').forEach(img => {
     let src = img.getAttribute('src') || img.getAttribute('data-src') || '';
     if (src.startsWith('//')) src = 'https:' + src;
-    if (src) {
-      /* bump thumbnail pixel size to 960 (works on /thumb/ URLs) */
-      src = src.replace(/\/(\d+)px-([^/]+)$/, '/960px-$2');
-      img.setAttribute('src', src);
-    }
-    img.removeAttribute('srcset');      /* stop browser picking tiny variants */
-    img.removeAttribute('width');
-    img.removeAttribute('height');
-    img.removeAttribute('style');       /* kill inline width:220px bullshit */
-    img.setAttribute('loading', 'lazy');
-    img.setAttribute('decoding', 'async');
+    if (src) img.setAttribute('src', src.replace(/\/(\d+)px-([^/]+)$/, '/960px-$2'));
+    img.removeAttribute('srcset'); img.removeAttribute('width'); img.removeAttribute('height'); img.removeAttribute('style');
+    img.setAttribute('loading', 'lazy'); img.setAttribute('decoding', 'async');
   });
-
-  /* Strip Wikipedia's tiny inline-width wrapper styles */
   doc.querySelectorAll('.thumb, .thumbinner, figure, .image, div[style*="width"]').forEach(el => el.removeAttribute('style'));
-
-  /* File/Image links open on Wikipedia */
   doc.querySelectorAll('a').forEach(a => {
     let href = a.getAttribute('href') || '';
     if (href.includes('File:') || href.includes('Image:') || href.includes('Map:')) {
-      const fileName = href.replace(/^(\.\/|\/wiki\/)/, '');
-      a.setAttribute('href', 'https://en.wikipedia.org/wiki/' + fileName);
+      a.setAttribute('href', 'https://en.wikipedia.org/wiki/' + href.replace(/^(\.\/|\/wiki\/)/, ''));
       a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener noreferrer');
     }
   });
-
   doc.querySelectorAll('.mw-editsection, .navbox, .vertical-navbox, .mw-empty-elt, style, script, .mw-jump-link, .catlinks, .printfooter').forEach(el => el.remove());
   return doc.body.innerHTML;
 }
@@ -109,23 +95,78 @@ if ($("sndBtn")) $("sndBtn").addEventListener("click", function() {
   if (soundOn) beep(1000); this.blur();
 });
 
-/* ============ MOBILE DRAWER — WITH BODY SCROLL LOCK ============ */
+/* ============ POPOVERS ============ */
+function openPop(id) { const p = $(id); if (p) p.classList.add("show"); }
+function closePop(id) { const p = $(id); if (p) p.classList.remove("show"); }
+function closeAllPops(except) { ["accountPop", "settingsPop"].forEach(id => { if (id !== except) closePop(id); }); }
+function togglePop(id) {
+  const p = $(id); if (!p) return;
+  const wasOpen = p.classList.contains("show");
+  closeAllPops();
+  if (!wasOpen) { openPop(id); beep(800); }
+}
+if ($("userChip")) $("userChip").addEventListener("click", e => { e.stopPropagation(); togglePop("accountPop"); });
+if ($("viewSettingsBtn")) $("viewSettingsBtn").addEventListener("click", e => { e.stopPropagation(); togglePop("settingsPop"); });
+document.querySelectorAll(".pop-close").forEach(b => b.addEventListener("click", () => closePop(b.dataset.close)));
+document.addEventListener("click", e => {
+  if (!e.target.closest("#accountPop") && !e.target.closest("#userChip")) closePop("accountPop");
+  if (!e.target.closest("#settingsPop") && !e.target.closest("#viewSettingsBtn")) closePop("settingsPop");
+});
+
+/* Settings pop tabs */
+document.querySelectorAll("#settingsPop .tab-btn").forEach(btn => btn.addEventListener("click", function() {
+  document.querySelectorAll("#settingsPop .tab-btn").forEach(b => b.classList.remove("active"));
+  this.classList.add("active");
+  const about = this.dataset.pop === "about";
+  if ($("popView")) $("popView").style.display = about ? "none" : "block";
+  if ($("popAbout")) $("popAbout").style.display = about ? "block" : "none";
+  beep(800);
+}));
+
+/* ============ VIEW SETTINGS — 15 FONTS ============ */
+const VIEW_KEY = "wk_view";
+const viewDefaults = { size: 15, font: "inter", width: 860, spacing: "cozy", images: true, justify: false };
+let viewPrefs = Object.assign({}, viewDefaults);
+try { Object.assign(viewPrefs, JSON.parse(localStorage.getItem(VIEW_KEY) || "{}")); } catch(e) {}
+const FONT_MAP = {
+  inter: "'Inter',sans-serif", grotesk: "'Space Grotesk',sans-serif", mono: "'IBM Plex Mono',monospace",
+  system: "system-ui,-apple-system,'Segoe UI',sans-serif", segoe: "'Segoe UI',sans-serif",
+  helvetica: "'Helvetica Neue',Helvetica,Arial,sans-serif", arial: "Arial,sans-serif",
+  verdana: "Verdana,sans-serif", trebuchet: "'Trebuchet MS',sans-serif", tahoma: "Tahoma,sans-serif",
+  georgia: "Georgia,serif", times: "'Times New Roman',serif", garamond: "Garamond,'Apple Garamond',serif",
+  palatino: "'Palatino Linotype','Book Antiqua',Palatino,serif", courier: "'Courier New',monospace"
+};
+const LH_MAP = { cozy: 1.85, compact: 1.6, air: 2.1 };
+function applyView() {
+  const s = document.documentElement.style;
+  s.setProperty('--art-size', viewPrefs.size + 'px');
+  s.setProperty('--art-font', FONT_MAP[viewPrefs.font] || FONT_MAP.inter);
+  s.setProperty('--art-width', viewPrefs.width + 'px');
+  s.setProperty('--art-lh', LH_MAP[viewPrefs.spacing] || 1.85);
+  document.body.classList.toggle('no-images', !viewPrefs.images);
+  document.body.classList.toggle('justify-on', !!viewPrefs.justify);
+  if ($("setSize")) $("setSize").value = viewPrefs.size;
+  if ($("sizeVal")) $("sizeVal").textContent = viewPrefs.size + "px";
+  if ($("setWidth")) $("setWidth").value = viewPrefs.width;
+  if ($("widthVal")) $("widthVal").textContent = viewPrefs.width + "px";
+  if ($("setFont")) $("setFont").value = viewPrefs.font;
+  if ($("setSpacing")) $("setSpacing").value = viewPrefs.spacing;
+  if ($("setImages")) $("setImages").checked = !!viewPrefs.images;
+  if ($("setJustify")) $("setJustify").checked = !!viewPrefs.justify;
+  localStorage.setItem(VIEW_KEY, JSON.stringify(viewPrefs));
+}
+if ($("setSize")) $("setSize").addEventListener("input", e => { viewPrefs.size = +e.target.value; applyView(); });
+if ($("setWidth")) $("setWidth").addEventListener("input", e => { viewPrefs.width = +e.target.value; applyView(); });
+if ($("setFont")) $("setFont").addEventListener("change", e => { viewPrefs.font = e.target.value; applyView(); beep(700); });
+if ($("setSpacing")) $("setSpacing").addEventListener("change", e => { viewPrefs.spacing = e.target.value; applyView(); beep(700); });
+if ($("setImages")) $("setImages").addEventListener("change", e => { viewPrefs.images = e.target.checked; applyView(); beep(600); });
+if ($("setJustify")) $("setJustify").addEventListener("change", e => { viewPrefs.justify = e.target.checked; applyView(); beep(600); });
+if ($("resetView")) $("resetView").addEventListener("click", () => { viewPrefs = Object.assign({}, viewDefaults); applyView(); toast("⚙️ VIEW RESET"); beep(400); });
+
+/* ============ DRAWER ============ */
 const drawerToggle = $("drawerToggle"), drawerOverlay = $("drawerOverlay"), sidebarLeft = $("sidebarLeft");
-function openDrawer() {
-  if (!sidebarLeft) return;
-  sidebarLeft.classList.add("open");
-  document.body.classList.add("drawer-open");
-  if (drawerOverlay) drawerOverlay.classList.add("show");
-  if (drawerToggle) { drawerToggle.classList.add("open"); drawerToggle.textContent = "✕"; }
-  beep(700);
-}
-function closeDrawer() {
-  if (!sidebarLeft) return;
-  sidebarLeft.classList.remove("open");
-  document.body.classList.remove("drawer-open");
-  if (drawerOverlay) drawerOverlay.classList.remove("show");
-  if (drawerToggle) { drawerToggle.classList.remove("open"); drawerToggle.textContent = "☰"; }
-}
+function openDrawer() { if (!sidebarLeft) return; sidebarLeft.classList.add("open"); document.body.classList.add("drawer-open"); if (drawerOverlay) drawerOverlay.classList.add("show"); if (drawerToggle) { drawerToggle.classList.add("open"); drawerToggle.textContent = "✕"; } beep(700); }
+function closeDrawer() { if (!sidebarLeft) return; sidebarLeft.classList.remove("open"); document.body.classList.remove("drawer-open"); if (drawerOverlay) drawerOverlay.classList.remove("show"); if (drawerToggle) { drawerToggle.classList.remove("open"); drawerToggle.textContent = "☰"; } }
 if (drawerToggle) drawerToggle.addEventListener("click", () => sidebarLeft && sidebarLeft.classList.contains("open") ? closeDrawer() : openDrawer());
 if (drawerOverlay) drawerOverlay.addEventListener("click", closeDrawer);
 document.addEventListener("click", e => { if (e.target.closest(".pill") && window.innerWidth <= 1200) closeDrawer(); });
@@ -146,7 +187,11 @@ function persistUser() { if (!currentUser) return; const db = loadDB(); db.data[
 function getSession() { return localStorage.getItem("wk_ses") || sessionStorage.getItem("wk_ses"); }
 function setSession(u, remember) { clearSession(); (remember ? localStorage : sessionStorage).setItem("wk_ses", u); }
 function clearSession() { localStorage.removeItem("wk_ses"); sessionStorage.removeItem("wk_ses"); }
-function authFail(msg) { toast("⚠ " + msg); beep(200, .2); const w = $("authWin"); if (w) { w.classList.remove("shake"); void w.offsetWidth; w.classList.add("shake"); } }
+function authFail(msg) {
+  toast("⚠ " + msg); beep(200, .2);
+  openPop("accountPop");
+  const w = $("accountPop"); if (w) { w.classList.remove("shake"); void w.offsetWidth; w.classList.add("shake"); }
+}
 
 if ($("togglePass1")) $("togglePass1").addEventListener("click", () => { const i = $("loginPass"); i.type = i.type === "password" ? "text" : "password"; });
 if ($("togglePass2")) $("togglePass2").addEventListener("click", () => { const i = $("regPass"); i.type = i.type === "password" ? "text" : "password"; });
@@ -161,9 +206,8 @@ if ($("loginForm")) $("loginForm").addEventListener("submit", e => {
   if (!db.users[u] || db.users[u].password !== enc(p)) return authFail("INVALID CREDENTIALS");
   setSession(u, $("loginRemember").checked);
   currentUser = u; userData = db.data[u] || { saved: [], fav: [], liked: [] };
-  renderAuth(); toast("✅ WELCOME BACK, " + u.toUpperCase()); jingle();
+  renderAuth(); closePop("accountPop"); toast("✅ WELCOME BACK, " + u.toUpperCase()); jingle();
 });
-
 if ($("registerForm")) $("registerForm").addEventListener("submit", e => {
   e.preventDefault(); beep(700);
   const u = $("regUser").value.trim(), p = $("regPass").value;
@@ -174,9 +218,8 @@ if ($("registerForm")) $("registerForm").addEventListener("submit", e => {
   db.users[u] = { password: enc(p) }; db.data[u] = { saved: [], fav: [], liked: [] };
   localStorage.setItem(DB_KEY, JSON.stringify(db));
   setSession(u, true); currentUser = u; userData = db.data[u];
-  renderAuth(); toast("✅ ACCOUNT CREATED — WELCOME, " + u.toUpperCase()); jingle();
+  renderAuth(); closePop("accountPop"); toast("✅ ACCOUNT CREATED — WELCOME, " + u.toUpperCase()); jingle();
 });
-
 if ($("logoutBtn")) $("logoutBtn").addEventListener("click", () => { clearSession(); currentUser = null; userData = null; renderAuth(); toast("LOGGED OUT"); beep(400); });
 if ($("deleteAccBtn")) $("deleteAccBtn").addEventListener("click", () => {
   if (!currentUser) return;
@@ -186,8 +229,9 @@ if ($("deleteAccBtn")) $("deleteAccBtn").addEventListener("click", () => {
   clearSession(); currentUser = null; userData = null; renderAuth(); toast("🗑 ACCOUNT DELETED"); beep(220, .25);
 });
 
-document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", function() {
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+/* Profile tabs (scoped to popover only) */
+document.querySelectorAll("#profileView .tab-btn").forEach(btn => btn.addEventListener("click", function() {
+  document.querySelectorAll("#profileView .tab-btn").forEach(b => b.classList.remove("active"));
   this.classList.add("active"); activeTab = this.dataset.tab; renderProfileList(activeTab); beep(800);
 }));
 
@@ -197,7 +241,6 @@ function renderProfileList(type) {
   if (!list.length) { el.innerHTML = '<div class="p-empty">NOTHING HERE YET — GO DISCOVER ✦</div>'; return; }
   el.innerHTML = list.map(a => `<div class="p-item" data-url="${escapeAttr(a.url)}"><span class="p-t">${escapeHtml(a.title)}</span><button class="p-del" data-title="${escapeAttr(a.title)}" title="Remove">✕</button></div>`).join("");
 }
-
 if ($("profileList")) $("profileList").addEventListener("click", e => {
   const del = e.target.closest(".p-del");
   if (del) { e.stopPropagation(); removeFromList(activeTab, del.dataset.title); toast("REMOVED"); return; }
@@ -235,10 +278,6 @@ function renderAuth() {
   if ($("userChipAva")) $("userChipAva").textContent = logged ? currentUser[0].toUpperCase() : "◌";
   renderStats(); updateLikeFavState();
 }
-if ($("userChip")) $("userChip").addEventListener("click", () => {
-  if (window.innerWidth <= 1200) openDrawer();
-  else if ($("authWin")) $("authWin").scrollIntoView({ behavior: "smooth", block: "center" });
-});
 
 /* ============ STATS ============ */
 let stats = { total: 0, streak: 0, last: "" };
@@ -262,7 +301,7 @@ function renderStats() {
   if ($("statSaved")) $("statSaved").textContent = currentUser ? (userData.saved.length + userData.fav.length + userData.liked.length) : "—";
 }
 
-/* ============ FETCH ENGINE ============ */
+/* ============ FETCH ============ */
 const cache = new Map();
 async function fetchPage(t) {
   if (cache.has(t)) return cache.get(t);
@@ -271,17 +310,15 @@ async function fetchPage(t) {
   const json = await res.json();
   if (!json.parse) throw new Error("not found");
   const cleanTitle = json.parse.title;
-  const cleanedHtml = sanitizeWikiHtml(json.parse.text["*"] || "");
   const data = {
     title: cleanTitle,
-    extract: cleanedHtml,
+    extract: sanitizeWikiHtml(json.parse.text["*"] || ""),
     url: "https://en.wikipedia.org/wiki/" + encodeURIComponent(cleanTitle.replace(/ /g, "_"))
   };
   if (cache.size > 40) cache.delete(cache.keys().next().value);
   cache.set(t, data);
   return data;
 }
-
 const showLoader = () => { if ($("loader")) $("loader").classList.add("show"); if ($("result")) $("result").classList.remove("show"); };
 
 function render(a, badge, kind) {
@@ -298,7 +335,6 @@ function render(a, badge, kind) {
   if (cb) { cb.classList.remove("pop"); void cb.offsetWidth; cb.classList.add("pop"); cb.scrollTop = 0; }
   onScrollProgress(); updateLikeFavState(); pushHistory(a.title); bumpStats(); jingle();
 }
-
 function showError(msg) {
   busy = false; stopSpeak();
   if ($("loader")) $("loader").classList.remove("show");
@@ -310,27 +346,34 @@ function showError(msg) {
   beep(220, .2);
 }
 
-/* Article link + image zoom handler */
-if ($("extract")) {
-  $("extract").addEventListener("click", e => {
-    const clickedImg = e.target.closest("img");
-    if (clickedImg && clickedImg.src) { e.preventDefault(); e.stopPropagation(); openZoomImage(clickedImg.src); return; }
-    const a = e.target.closest("a");
-    if (!a) return;
-    let href = a.getAttribute("href") || "";
-    if (href.includes("/wiki/File:") || href.includes("File:") || href.includes("Image:")) { a.target = "_blank"; a.rel = "noopener noreferrer"; return; }
-    if (href.startsWith("./")) href = href.replace("./", "/wiki/");
-    if (href.includes("/wiki/")) {
-      const articleTitle = href.split("/wiki/")[1];
-      if (articleTitle && !articleTitle.includes(":")) {
-        e.preventDefault();
-        loadByTitle(decodeURIComponent(articleTitle).replace(/_/g, " "), "🔗 FROM LINK", "link");
-      }
-    } else if (href.startsWith("http")) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
-  });
-}
+if ($("extract")) $("extract").addEventListener("click", e => {
+  const clickedImg = e.target.closest("img");
+  if (clickedImg && clickedImg.src) { e.preventDefault(); e.stopPropagation(); openZoomImage(clickedImg.src); return; }
+  const a = e.target.closest("a");
+  if (!a) return;
+  let href = a.getAttribute("href") || "";
+  if (href.includes("/wiki/File:") || href.includes("File:") || href.includes("Image:")) { a.target = "_blank"; a.rel = "noopener noreferrer"; return; }
+  if (href.startsWith("./")) href = href.replace("./", "/wiki/");
+  if (href.includes("/wiki/")) {
+    const t2 = href.split("/wiki/")[1];
+    if (t2 && !t2.includes(":")) { e.preventDefault(); loadByTitle(decodeURIComponent(t2).replace(/_/g, " "), "🔗 FROM LINK", "link"); }
+  } else if (href.startsWith("http")) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
+});
 
-/* ============ DISCOVERY ============ */
+/* ============ DISCOVERY — candidate chain + pool fallback ============ */
+async function fetchCategoryMembers(key) {
+  const cands = CATEGORY_CANDIDATES[key] || [key];
+  for (const c of cands) {
+    try {
+      const res = await fetch(`${API}?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(c)}&cmlimit=100&cmtype=page&format=json&origin=*`);
+      const m = (await res.json()).query && (await res.json().catch(() => null) || {}).query ? null : null;
+      const json = await (await fetch(`${API}?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(c)}&cmlimit=100&cmtype=page&format=json&origin=*`)).json();
+      const list = json.query && json.query.categorymembers;
+      if (list && list.length) return list;
+    } catch(e) {}
+  }
+  return null;
+}
 async function roll() {
   if (busy) return; busy = true; showLoader(); beep(1200);
   try {
@@ -339,34 +382,32 @@ async function roll() {
       render(await fetchPage(d.title), "✨ RANDOM FIND", "rand");
     } else {
       const key = currentCat.toLowerCase();
-      const wikiCat = CATEGORY_MAP[key] || currentCat;
-      const res = await fetch(`${API}?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(wikiCat)}&cmlimit=100&cmtype=page&format=json&origin=*`);
-      const m = (await res.json()).query.categorymembers;
-      if (!m || !m.length) throw new Error("empty");
-      render(await fetchPage(m[Math.floor(Math.random() * m.length)].title), currentChannel.toUpperCase(), "cat");
+      const m = await fetchCategoryMembers(key);
+      if (m) {
+        render(await fetchPage(m[Math.floor(Math.random() * m.length)].title), currentChannel.toUpperCase(), "cat");
+      } else if (FALLBACK_POOLS[key]) {
+        const pool = FALLBACK_POOLS[key];
+        render(await fetchPage(pool[Math.floor(Math.random() * pool.length)]), currentChannel.toUpperCase(), "cat");
+      } else throw new Error("empty");
     }
   } catch(e) { showError("Could not fetch article. Press Next to retry."); }
   busy = false;
 }
-
 async function loadByTitle(t, badge, kind) {
   if (busy) return; busy = true; showLoader(); beep(900);
   try { render(await fetchPage(t), badge, kind || "rand"); }
   catch(e) { showError("Article unreachable."); }
   busy = false;
 }
-
 if ($("trickRandom")) $("trickRandom").addEventListener("click", () => roll());
 if ($("nextBtn")) $("nextBtn").addEventListener("click", () => roll());
 if ($("trickWeird")) $("trickWeird").addEventListener("click", async () => { if (busy) return; busy = true; showLoader(); beep(500); try { render(await fetchPage(WEIRD[Math.floor(Math.random() * WEIRD.length)]), "🤪 CERTIFIED WEIRD", "weird"); } catch(e) { showError("Weirdness unavailable."); } busy = false; });
 if ($("trickMystery")) $("trickMystery").addEventListener("click", async () => { if (busy) return; busy = true; showLoader(); beep(400); try { render(await fetchPage(MYSTERIES[Math.floor(Math.random() * MYSTERIES.length)]), "🔮 UNSOLVED MYSTERY", "mystery"); } catch(e) { showError("Mystery vanished."); } busy = false; });
 if ($("trickTrail")) $("trickTrail").addEventListener("click", async () => { if (busy) return; busy = true; showLoader(); beep(700); try { const d = await (await fetch("https://en.wikipedia.org/api/rest_v1/page/random/summary")).json(); const full = await fetchPage(d.title); render({ ...full, extract: '<p style="text-align:center;"><i>Getting to Philosophy: click the first link — you will almost always land on Philosophy.</i></p>' + full.extract }, "🧭 PHILOSOPHY TRAIL", "trail"); } catch(e) { showError("Trail closed."); } busy = false; });
-
 if ($("trickPotd")) $("trickPotd").addEventListener("click", async () => {
   if (busy) return; busy = true; showLoader(); beep(900);
   try {
-    const today = new Date();
-    const yyyy = today.getUTCFullYear(), mm = String(today.getUTCMonth()+1).padStart(2,"0"), dd = String(today.getUTCDate()).padStart(2,"0");
+    const n = new Date(), yyyy = n.getUTCFullYear(), mm = String(n.getUTCMonth()+1).padStart(2,"0"), dd = String(n.getUTCDate()).padStart(2,"0");
     const res = await fetch(`https://en.wikipedia.org/api/rest_v1/feed/featured/${yyyy}/${mm}/${dd}`);
     if (!res.ok) throw new Error("fail");
     const d = await res.json();
@@ -377,7 +418,6 @@ if ($("trickPotd")) $("trickPotd").addEventListener("click", async () => {
   } catch(e) { showError("Picture unavailable."); }
   busy = false;
 });
-
 if ($("trickOtd")) $("trickOtd").addEventListener("click", async () => {
   if (busy) return; busy = true; showLoader(); beep(600);
   try {
@@ -390,7 +430,6 @@ if ($("trickOtd")) $("trickOtd").addEventListener("click", async () => {
   } catch(e) { showError("History unavailable."); }
   busy = false;
 });
-
 function toggleRoulette() {
   const b = $("rouletteBtn"); if (!b) return;
   if (rouletteTimer) { clearInterval(rouletteTimer); rouletteTimer = null; b.classList.remove("on"); b.textContent = "🔁 Auto Roulette"; toast("ROULETTE OFF"); beep(300,.15); }
@@ -449,7 +488,6 @@ if ($("copyTextBtn")) $("copyTextBtn").addEventListener("click", () => { if (cur
 if ($("copyLinkBtn")) $("copyLinkBtn").addEventListener("click", () => { if (current) { copyHelper(current.url, "🔗 LINK COPIED"); beep(1100); } });
 if ($("shareBtn")) $("shareBtn").addEventListener("click", () => { if (!current) return; if (navigator.share) navigator.share({ title: current.title, url: current.url }).catch(()=>{}); else copyHelper(current.url, "📡 LINK COPIED"); beep(1100); });
 
-/* Read Aloud */
 let speaking = false;
 function stopSpeak() { try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch(e) {} speaking = false; if ($("speakBtn")) { $("speakBtn").classList.remove("on"); $("speakBtn").textContent = "🔉"; } }
 if ($("speakBtn")) $("speakBtn").addEventListener("click", () => {
@@ -466,7 +504,7 @@ function pushHistory(t) { if (hist[0] === t) return; const i = hist.indexOf(t); 
 function renderHistory() { if (!$("histList")) return; $("histList").innerHTML = hist.length ? hist.map(t => `<button class="chip" data-title="${escapeAttr(t)}">${escapeHtml(t)}</button>`).join("") : '<span class="hist-empty">NO ARTICLES YET — START EXPLORING…</span>'; }
 if ($("histList")) $("histList").addEventListener("click", e => { const c = e.target.closest(".chip"); if (c) loadByTitle(c.dataset.title, "↩ FROM HISTORY", "link"); });
 
-/* ============ PROGRESS — rAF THROTTLED (kills scroll lag) ============ */
+/* ============ PROGRESS ============ */
 let progTick = false;
 function onScrollProgress() {
   if (progTick) return;
@@ -483,7 +521,12 @@ if ($("cardBody")) $("cardBody").addEventListener("scroll", onScrollProgress, { 
 /* ============ KEYBOARD ============ */
 document.addEventListener("keydown", e => {
   if (e.repeat) return;
-  if (e.key === "Escape") { const lb = $("imgLightbox"); if (lb && lb.style.display !== "none") { lb.style.display = "none"; return; } if (sidebarLeft && sidebarLeft.classList.contains("open")) { closeDrawer(); return; } }
+  if (e.key === "Escape") {
+    const lb = $("imgLightbox"); if (lb && lb.style.display !== "none") { lb.style.display = "none"; return; }
+    if ($("accountPop") && $("accountPop").classList.contains("show")) { closePop("accountPop"); return; }
+    if ($("settingsPop") && $("settingsPop").classList.contains("show")) { closePop("settingsPop"); return; }
+    if (sidebarLeft && sidebarLeft.classList.contains("open")) { closeDrawer(); return; }
+  }
   if (e.target.matches("input,textarea,select")) { if (e.key === "Escape") e.target.blur(); return; }
   if (e.code === "Space") { e.preventDefault(); roll(); }
   else if (e.code === "KeyR") toggleRoulette();
@@ -493,7 +536,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "/" && $("scanInput")) { e.preventDefault(); $("scanInput").focus(); }
 });
 
-/* ============ STARFIELD — respects reduced motion ============ */
+/* ============ STARFIELD ============ */
 (function() {
   const cv = $("stars"); if (!cv) return;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -508,9 +551,17 @@ document.addEventListener("keydown", e => {
 function tickClock() { if (!$("clock")) return; const d = new Date(); $("clock").textContent = String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0")+":"+String(d.getUTCSeconds()).padStart(2,"0")+" UTC"; }
 setInterval(tickClock, 1000); tickClock();
 
-/* ============ THEME ============ */
-function applyTheme(t) { const theme = t==='dark'?'dark':'light'; document.documentElement.setAttribute('data-theme',theme); try{localStorage.setItem('wk_theme',theme);}catch(e){} const btn=$("themeBtn"); if(btn) btn.textContent=theme==='dark'?'🌙':'☀️'; }
-if ($("themeBtn")) $("themeBtn").addEventListener('click', function() { const cur = document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'; applyTheme(cur==='dark'?'light':'dark'); beep(600); });
+/* ============ THEME — sun icon fixed ============ */
+function applyTheme(t) {
+  const theme = t === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('wk_theme', theme); } catch(e) {}
+  const btn = $("themeBtn"); if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+}
+if ($("themeBtn")) $("themeBtn").addEventListener('click', function() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark'); beep(600);
+});
 
 /* ============ INIT ============ */
 (function init() {
@@ -518,6 +569,7 @@ if ($("themeBtn")) $("themeBtn").addEventListener('click', function() { const cu
   const su = getSession();
   if (su && db.users[su]) { currentUser = su; userData = db.data[su] || { saved:[], fav:[], liked:[] }; }
   try { applyTheme(localStorage.getItem('wk_theme') || 'light'); } catch(e) {}
+  applyView();
   renderAuth(); renderHistory(); renderStats(); roll();
 })();
 })();
