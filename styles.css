@@ -294,3 +294,37 @@ input[type="range"] { width: 100%; accent-color: var(--accent); height: 26px; cu
 }
 .sidebar .window { overflow: visible !important; }
 .sidebar .window .body { overflow: visible !important; }
+
+/* ============ SEARCH DROPDOWN DEPTH FIX ============ */
+.scan-results {
+  /* Hard shadow for visual separation from parent */
+  box-shadow: 0 8px 32px rgba(0,0,0,.35), 0 0 0 1px var(--border-hi) !important;
+  /* Solid background so text doesn't bleed through */
+  background: var(--panel) !important;
+  /* Slightly rounded corners match window aesthetic */
+  border-radius: 10px !important;
+  /* Ensure it sits ABOVE everything in the sidebar */
+  z-index: 100 !important;
+}
+
+/* Dark mode needs extra contrast since panels are already dark */
+[data-theme="dark"] .scan-results {
+  background: #1a2530 !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6), 0 0 0 1px #2b3a48 !important;
+}
+
+/* Highlighted search matches need pop against dark/light backgrounds */
+.scan-item .searchmatch {
+  background: var(--gold) !important;
+  color: #1a1a1a !important;
+  font-weight: 700 !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+}
+
+/* Hover state should feel tactile, not flat */
+.scan-item:hover {
+  background: rgba(52,152,219,.08) !important;
+  border-left: 3px solid var(--accent);
+  padding-left: 9px !important; /* compensate for border */
+}
