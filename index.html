@@ -17,32 +17,130 @@
 
 <canvas id="stars"></canvas>
 
-<!-- MOBILE DRAWER -->
 <button class="drawer-toggle" id="drawerToggle" aria-label="Toggle navigation">☰</button>
 <div class="drawer-overlay" id="drawerOverlay"></div>
 
 <!-- ============ TOPBAR ============ -->
 <div class="topbar">
-  <div class="brand">
-    <img src="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png" alt="Wikiverse logo">
-    <div>
-      <div class="brand-name">WIKI<em>VERSE</em></div>
-      <div class="brand-sub">// INFINITE KNOWLEDGE EXPLORER</div>
+  <div class="topbar-inner">
+    <div class="brand">
+      <img src="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png" alt="Wikiverse logo">
+      <div>
+        <div class="brand-name">WIKI<em>VERSE</em></div>
+        <div class="brand-sub">// INFINITE KNOWLEDGE EXPLORER</div>
+      </div>
+    </div>
+    <div class="top-status">
+      <span class="dot-live"></span>
+      <span id="clock">00:00:00 UTC</span>
+      <button class="ibtn" id="themeBtn" title="Toggle theme">🌙</button>
+      <div class="user-chip" id="userChip" title="Account">
+        <div class="ava" id="userChipAva">◌</div><span id="userChipName">PROFILE</span>
+      </div>
     </div>
   </div>
-  <div class="top-status">
-    <span class="dot-live"></span>
-    <span id="clock">00:00:00 UTC</span>
-    <button class="ibtn" id="themeBtn" title="Toggle theme">🌙</button>
-    <div class="user-chip" id="userChip" title="Your identity">
-      <div class="ava" id="userChipAva">◌</div><span id="userChipName">PROFILE</span>
+</div>
+
+<!-- ============ ACCOUNT POPOVER (top-right chip) ============ -->
+<div class="popover" id="accountPop">
+  <div class="pop-head"><span class="pop-title">ACCOUNT</span><button class="ibtn pop-close" data-close="accountPop" title="Close">✕</button></div>
+  <div class="body" id="authForms">
+    <form id="loginForm">
+      <input type="text" id="loginUser" placeholder="Username" class="auth-input" autocomplete="username">
+      <div class="pass-wrap">
+        <input type="password" id="loginPass" placeholder="Password" class="auth-input" autocomplete="current-password">
+        <button type="button" class="pass-eye" id="togglePass1" title="Show / hide">👁️</button>
+      </div>
+      <label class="remember"><input type="checkbox" id="loginRemember" checked> Remember me on this device</label>
+      <button class="btn-primary" type="submit">LOGIN</button>
+      <p class="auth-switch">New explorer? <a id="toRegister">Create an account</a></p>
+    </form>
+    <form id="registerForm" style="display:none;">
+      <input type="text" id="regUser" placeholder="Choose username (3–16 chars)" class="auth-input">
+      <div class="pass-wrap">
+        <input type="password" id="regPass" placeholder="Choose password (min 4 chars)" class="auth-input">
+        <button type="button" class="pass-eye" id="togglePass2" title="Show / hide">👁️</button>
+      </div>
+      <button class="btn-primary" type="submit">REGISTER</button>
+      <p class="auth-switch">Already registered? <a id="toLogin">Sign in</a></p>
+    </form>
+    <div class="demo-hint">DEMO ACCESS → krshxcx / krshxcx</div>
+  </div>
+  <div class="body" id="profileView" style="display:none;">
+    <div class="profile-head">
+      <div class="ava-big" id="avaBig">?</div>
+      <div><h3 id="welcomeUser"></h3><small>● LOGGED IN</small></div>
+    </div>
+    <div class="profile-tabs">
+      <button class="tab-btn active" data-tab="saved">SAVED <b id="cntSaved">0</b></button>
+      <button class="tab-btn" data-tab="fav">FAVORITES <b id="cntFav">0</b></button>
+      <button class="tab-btn" data-tab="liked">LIKED <b id="cntLiked">0</b></button>
+    </div>
+    <div class="profile-list" id="profileList"></div>
+    <button class="btn-danger" id="logoutBtn">LOGOUT</button>
+    <button class="btn-danger" id="deleteAccBtn">DELETE ACCOUNT</button>
+  </div>
+</div>
+
+<!-- ============ SETTINGS + ABOUT POPOVER (gear button) ============ -->
+<div class="popover popover-wide" id="settingsPop">
+  <div class="pop-head"><span class="pop-title">SETTINGS &amp; ABOUT</span><button class="ibtn pop-close" data-close="settingsPop" title="Close">✕</button></div>
+  <div class="pop-tabs">
+    <button class="tab-btn active" data-pop="view">🎨 VIEW</button>
+    <button class="tab-btn" data-pop="about">ℹ️ ABOUT</button>
+  </div>
+  <div class="body" id="popView">
+    <label class="set-label">TEXT SIZE <b id="sizeVal">15px</b></label>
+    <input type="range" id="setSize" min="13" max="20" step="1" value="15">
+    <label class="set-label">FONT FACE (15 STYLES)</label>
+    <select id="setFont" class="set-select">
+      <option value="inter">01 · Inter — clean</option>
+      <option value="grotesk">02 · Space Grotesk — display</option>
+      <option value="mono">03 · IBM Plex Mono — terminal</option>
+      <option value="system">04 · System UI — native</option>
+      <option value="segoe">05 · Segoe UI — windows</option>
+      <option value="helvetica">06 · Helvetica — classic</option>
+      <option value="arial">07 · Arial — everywhere</option>
+      <option value="verdana">08 · Verdana — wide</option>
+      <option value="trebuchet">09 · Trebuchet MS — friendly</option>
+      <option value="tahoma">10 · Tahoma — tight</option>
+      <option value="georgia">11 · Georgia — book</option>
+      <option value="times">12 · Times New Roman — academic</option>
+      <option value="garamond">13 · Garamond — elegant</option>
+      <option value="palatino">14 · Palatino — renaissance</option>
+      <option value="courier">15 · Courier New — typewriter</option>
+    </select>
+    <label class="set-label">COLUMN WIDTH <b id="widthVal">860px</b></label>
+    <input type="range" id="setWidth" min="640" max="1100" step="20" value="860">
+    <label class="set-label">LINE SPACING</label>
+    <select id="setSpacing" class="set-select">
+      <option value="cozy">Cozy (1.85)</option>
+      <option value="compact">Compact (1.6)</option>
+      <option value="air">Airy (2.1)</option>
+    </select>
+    <div class="set-row">
+      <label class="remember"><input type="checkbox" id="setImages" checked> Show images</label>
+      <label class="remember"><input type="checkbox" id="setJustify"> Justify text</label>
+    </div>
+    <button class="btn-danger" id="resetView">RESET DEFAULTS</button>
+  </div>
+  <div class="body" id="popAbout" style="display:none;">
+    <p class="about-text"><b>WHY WIKIVERSE EXISTS</b> — Wikipedia is the greatest rabbit hole humans ever built, but reading it should feel like a <b>game</b>, not a chore. WIKIVERSE turns infinite knowledge into exploration: random finds, categories, streaks, 8-bit sounds and a reader you can tune exactly to your eyes. No ads, no tracking, no algorithmic feed — just pure, uncut human knowledge, rendered by your own browser.</p>
+    <div class="creator-card">
+      <div class="ava-big">K</div>
+      <div><h4>krshxcx</h4><small>CREATOR · SAIKRISHNA DURGAM</small></div>
+    </div>
+    <div class="social-links">
+      <a href="https://www.linkedin.com/in/saikrishna-durgam/" target="_blank" rel="noreferrer">LinkedIn</a>
+      <a href="https://github.com/krshxcx" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="mailto:krshxcx@gmail.com">Email</a>
     </div>
   </div>
 </div>
 
 <div class="app-shell">
 
-  <!-- ============ LEFT SIDEBAR ============ -->
+  <!-- ============ LEFT: SEARCH + CATEGORY ONLY ============ -->
   <div class="sidebar sidebar-left" id="sidebarLeft">
     <div class="window">
       <div class="titlebar"><span>SEARCH</span></div>
@@ -54,7 +152,6 @@
         <div class="scan-hint">PRESS / TO FOCUS · ENTER TO OPEN TOP HIT</div>
       </div>
     </div>
-
     <div class="window">
       <div class="titlebar"><span>CATEGORY</span></div>
       <div class="body">
@@ -76,21 +173,9 @@
         </div>
       </div>
     </div>
-
-    <div class="window">
-      <div class="titlebar"><span>STATS</span></div>
-      <div class="body">
-        <div class="stats-grid">
-          <div class="stat"><b id="statTotal">0</b><span>TOTAL FINDS</span></div>
-          <div class="stat"><b id="statSession">0</b><span>THIS SESSION</span></div>
-          <div class="stat"><b id="statStreak">0d</b><span>DAY STREAK</span></div>
-          <div class="stat"><b id="statSaved">—</b><span>ARCHIVED</span></div>
-        </div>
-      </div>
-    </div>
   </div>
 
-  <!-- ============ CENTER: KNOWLEDGE VIEWER ============ -->
+  <!-- ============ CENTER: VIEWER ============ -->
   <div class="main-content">
     <div class="window viewer-window">
       <div class="titlebar viewer-titlebar">
@@ -104,6 +189,7 @@
           <button class="ibtn" id="copyLinkBtn" title="Copy link">🔗</button>
           <button class="ibtn" id="shareBtn" title="Share">📡</button>
           <button class="ibtn" id="speakBtn" title="Read aloud">🔉</button>
+          <button class="ibtn" id="viewSettingsBtn" title="Settings & about">⚙️</button>
           <button class="btn-next" id="nextBtn" title="Next article [SPACE]">NEXT ➜</button>
         </div>
       </div>
@@ -125,55 +211,21 @@
         </div>
       </div>
     </div>
-
-    <div class="window">
-      <div class="titlebar"><span>RECENTLY VIEWED</span></div>
-      <div class="hist-body" id="histList"><span class="hist-empty">NO ARTICLES YET — START EXPLORING…</span></div>
-    </div>
   </div>
 
-  <!-- ============ RIGHT SIDEBAR ============ -->
+  <!-- ============ RIGHT: STATS + TRICKS + HISTORY ============ -->
   <div class="sidebar sidebar-right">
-    <div class="window" id="authWin">
-      <div class="titlebar"><span>ACCOUNT</span></div>
-      <div class="body" id="authForms">
-        <form id="loginForm">
-          <input type="text" id="loginUser" placeholder="Username" class="auth-input" autocomplete="username">
-          <div class="pass-wrap">
-            <input type="password" id="loginPass" placeholder="Password" class="auth-input" autocomplete="current-password">
-            <button type="button" class="pass-eye" id="togglePass1" title="Show / hide">👁️</button>
-          </div>
-          <label class="remember"><input type="checkbox" id="loginRemember" checked> Remember me on this device</label>
-          <button class="btn-primary" type="submit">LOGIN</button>
-          <p class="auth-switch">New explorer? <a id="toRegister">Create an account</a></p>
-        </form>
-        <form id="registerForm" style="display:none;">
-          <input type="text" id="regUser" placeholder="Choose username (3–16 chars)" class="auth-input">
-          <div class="pass-wrap">
-            <input type="password" id="regPass" placeholder="Choose password (min 4 chars)" class="auth-input">
-            <button type="button" class="pass-eye" id="togglePass2" title="Show / hide">👁️</button>
-          </div>
-          <button class="btn-primary" type="submit">REGISTER</button>
-          <p class="auth-switch">Already registered? <a id="toLogin">Sign in</a></p>
-        </form>
-        <div class="demo-hint">DEMO ACCESS → krshxcx / krshxcx</div>
-      </div>
-      <div class="body" id="profileView" style="display:none;">
-        <div class="profile-head">
-          <div class="ava-big" id="avaBig">?</div>
-          <div><h3 id="welcomeUser"></h3><small>● LOGGED IN</small></div>
+    <div class="window">
+      <div class="titlebar"><span>STATS</span></div>
+      <div class="body">
+        <div class="stats-grid">
+          <div class="stat"><b id="statTotal">0</b><span>TOTAL FINDS</span></div>
+          <div class="stat"><b id="statSession">0</b><span>THIS SESSION</span></div>
+          <div class="stat"><b id="statStreak">0d</b><span>DAY STREAK</span></div>
+          <div class="stat"><b id="statSaved">—</b><span>ARCHIVED</span></div>
         </div>
-        <div class="profile-tabs">
-          <button class="tab-btn active" data-tab="saved">SAVED <b id="cntSaved">0</b></button>
-          <button class="tab-btn" data-tab="fav">FAVORITES <b id="cntFav">0</b></button>
-          <button class="tab-btn" data-tab="liked">LIKED <b id="cntLiked">0</b></button>
-        </div>
-        <div class="profile-list" id="profileList"></div>
-        <button class="btn-danger" id="logoutBtn">LOGOUT</button>
-        <button class="btn-danger" id="deleteAccBtn">DELETE ACCOUNT</button>
       </div>
     </div>
-
     <div class="window">
       <div class="titlebar"><span>TRICKS &amp; SOUND</span></div>
       <div class="body">
@@ -189,6 +241,10 @@
         </div>
         <div class="kbd-hint">SPACE next · R roulette · L like · F favorite · S save · / search</div>
       </div>
+    </div>
+    <div class="window">
+      <div class="titlebar"><span>RECENTLY VIEWED</span></div>
+      <div class="hist-body" id="histList"><span class="hist-empty">NO ARTICLES YET — START EXPLORING…</span></div>
     </div>
   </div>
 </div>
