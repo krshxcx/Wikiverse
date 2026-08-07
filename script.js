@@ -23,11 +23,32 @@ const escapeHtml = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 const escapeAttr = s => escapeHtml(s);
 
 let tt;
-function toast(m){ const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 2400); }
+function toast(m){ const t = $("toast"); if (!t) return; t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 2400); }
 async function copyHelper(text, msg){
   try { await navigator.clipboard.writeText(text); toast(msg); }
   catch { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
     try { document.execCommand("copy"); toast(msg); } catch { toast("⚠ CLIPBOARD BLOCKED"); } ta.remove(); }
+}
+
+/* Sanitizes and processes HTML from MediaWiki parse engine */
+function sanitizeWikiHtml(htmlStr) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlStr, 'text/html');
+
+  // Fix protocol-relative URLs (e.g. //upload.wikimedia.org -> https://upload.wikimedia.org)
+  doc.querySelectorAll('img, source, a').forEach(el => {
+    ['src', 'srcset', 'href'].forEach(attr => {
+      let val = el.getAttribute(attr);
+      if (val && val.startsWith('//')) {
+        el.setAttribute(attr, 'https:' + val);
+      }
+    });
+  });
+
+  // Remove elements that disrupt custom UI
+  doc.querySelectorAll('.mw-editsection, .navbox, .vertical-navbox, .mw-empty-elt, style, script').forEach(el => el.remove());
+
+  return doc.body.innerHTML;
 }
 
 /* ============ 8-BIT SOUND SYSTEM ============ */
@@ -208,16 +229,25 @@ function renderStats(){
 const cache = new Map();
 async function fetchPage(t){
   if (cache.has(t)) return cache.get(t);
-  const q = `${API}?action=query&prop=extracts|pageimages&piprop=thumbnail&pithumbsize=600&redirects=1&exsectionformat=wiki&format=json&origin=*&titles=${encodeURIComponent(t)}`;
+
+  // Use parse API to get full HTML including tables, infoboxes, graphs, and images
+  const q = `${API}?action=parse&page=${encodeURIComponent(t)}&prop=text|images|displaytitle&redirects=1&format=json&origin=*`;
   const res = await fetch(q);
-  const page = Object.values((await res.json()).query.pages)[0];
-  if (!page || page.missing !== undefined) throw new Error("not found");
+  const json = await res.json();
+  
+  if (!json.parse) throw new Error("not found");
+
+  const cleanTitle = json.parse.title;
+  const rawHtml = json.parse.text["*"] || "";
+  const cleanedHtml = sanitizeWikiHtml(rawHtml);
+
   const data = {
-    title: page.title,
-    extract: page.extract || "",
-    img: page.thumbnail ? page.thumbnail.source : null,
-    url: "https://en.wikipedia.org/wiki/" + encodeURIComponent(page.title.replace(/ /g, "_"))
+    title: cleanTitle,
+    extract: cleanedHtml,
+    img: null,
+    url: "https://en.wikipedia.org/wiki/" + encodeURIComponent(cleanTitle.replace(/ /g, "_"))
   };
+
   if (cache.size > 40) cache.delete(cache.keys().next().value);
   cache.set(t, data);
   return data;
@@ -230,13 +260,16 @@ function render(a, badge, kind){
   const b = $("badge"); if (b) { b.textContent = badge; b.className = "badge k-" + (kind || "rand"); }
   if ($("title")) $("title").textContent = a.title;
   if ($("extract")) $("extract").innerHTML = a.extract || "<p>No content available for this entry.</p>";
+  
   const thumb = $("thumb");
   if (thumb) { if (a.img) { thumb.src = a.img; thumb.style.display = "block"; } else thumb.style.display = "none"; }
   if ($("wikiLink")) $("wikiLink").href = a.url;
+  
   const words = (($("extract") && $("extract").innerText) || "").trim().split(/\s+/).filter(Boolean).length;
   if ($("metaLine")) $("metaLine").textContent = `≈ ${Math.max(1, Math.round(words / 220))} MIN READ · ${words.toLocaleString()} WORDS`;
   if ($("loader")) $("loader").classList.remove("show");
   if ($("result")) $("result").classList.add("show");
+  
   const cb = $("cardBody");
   if (cb) { cb.classList.remove("pop"); void cb.offsetWidth; cb.classList.add("pop"); cb.scrollTop = 0; }
   onScrollProgress();
@@ -262,10 +295,16 @@ if ($("extract")) {
     const a = e.target.closest("a");
     if (!a) return;
     
-    const href = a.getAttribute("href") || "";
-    if (href.startsWith("/wiki/")) {
-      const articleTitle = href.replace("/wiki/", "");
-      if (!articleTitle.includes(":")) {
+    let href = a.getAttribute("href") || "";
+
+    // Normalize relative Wikipedia links (e.g. "./Topic", "/wiki/Topic", "http.../wiki/Topic")
+    if (href.startsWith("./")) {
+      href = href.replace("./", "/wiki/");
+    }
+
+    if (href.includes("/wiki/")) {
+      const articleTitle = href.split("/wiki/")[1];
+      if (articleTitle && !articleTitle.includes(":")) {
         e.preventDefault();
         const cleanTitle = decodeURIComponent(articleTitle).replace(/_/g, " ");
         loadByTitle(cleanTitle, "🔗 FROM LINK", "link");
@@ -329,13 +368,12 @@ if ($("trickTrail")) {
     try {
       const d = await (await fetch("https://en.wikipedia.org/api/rest_v1/page/random/summary")).json();
       const full = await fetchPage(d.title);
-      render({ ...full, extract: "<p class=\"role-note\"><i>Getting to Philosophy: click the first link (skip parentheses) in any article, repeat — you will almost always land on Philosophy. Try it right here, links are live.</i></p>" + full.extract }, "🧭 PHILOSOPHY TRAIL", "trail");
+      render({ ...full, extract: "<p class=\"role-note\"><i>Getting to Philosophy: click the first link in any article, repeat — you will almost always land on Philosophy. Try it right here, links are live.</i></p>" + full.extract }, "🧭 PHILOSOPHY TRAIL", "trail");
     } catch(e) { showError("Trail closed today."); }
     busy = false;
   });
 }
 
-/* POTD function */
 if ($("trickPotd")) {
   $("trickPotd").addEventListener("click", async () => {
     if (busy) return; busy = true; showLoader(); beep(900);
