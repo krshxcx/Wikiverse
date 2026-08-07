@@ -11,11 +11,21 @@ let currentUser = null, userData = null, activeTab = "saved";
 const WEIRD = ["Dancing_plague_of_1518","Great_Emu_War","Boston_Molasses_Disaster","Kentucky_meat_shower","Cadaver_Synod","War_of_the_Bucket","Erfurt_latrine_disaster","Toynbee_tiles","Pig_War_(1859)","List_of_unusual_deaths","Tanganyika_laughter_epidemic","London_Beer_Flood"];
 const MYSTERIES = ["Dyatlov_Pass_incident","Mary_Celeste","Voynich_manuscript","Tamam_Shud_case","Wow!_signal","D.B._Cooper","Jack_the_Ripper","Roanoke_Colony","Antikythera_mechanism","Nazca_Lines"];
 
-/* Category mapping for Wikipedia API */
+/* RESTORED CATEGORY MAP FOR WIKIPEDIA API */
 const CATEGORY_MAP = {
   "mysteries": "Unsolved_mysteries",
   "philosophy": "Branch_of_philosophy",
-  "sexuality": "Human_sexuality"
+  "sexuality": "Human_sexuality",
+  "psychology": "Psychology",
+  "biology": "Biology",
+  "physics": "Physics",
+  "mathematics": "Mathematics",
+  "history": "History",
+  "art": "Art",
+  "music": "Music",
+  "geography": "Geography",
+  "technology": "Technology",
+  "astronomy": "Astronomy"
 };
 
 /* ============ HELPERS ============ */
@@ -30,13 +40,13 @@ async function copyHelper(text, msg){
     try { document.execCommand("copy"); toast(msg); } catch { toast("⚠ CLIPBOARD BLOCKED"); } ta.remove(); }
 }
 
-/* Sanitizes and processes HTML from MediaWiki parse engine */
+/* Sanitizes HTML and fixes local File: link pathing & Map iframe sources */
 function sanitizeWikiHtml(htmlStr) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlStr, 'text/html');
 
-  // Fix protocol-relative URLs (e.g. //upload.wikimedia.org -> https://upload.wikimedia.org)
-  doc.querySelectorAll('img, source, a').forEach(el => {
+  // Fix protocol-relative URLs for images, maps, and media sources
+  doc.querySelectorAll('img, source, a, iframe, svg').forEach(el => {
     ['src', 'srcset', 'href'].forEach(attr => {
       let val = el.getAttribute(attr);
       if (val && val.startsWith('//')) {
@@ -45,10 +55,42 @@ function sanitizeWikiHtml(htmlStr) {
     });
   });
 
-  // Remove elements that disrupt custom UI
+  // Preserve map images / Kartographer map elements while fixing local File: links
+  doc.querySelectorAll('a').forEach(a => {
+    let href = a.getAttribute('href') || '';
+    if (href.includes('File:') || href.includes('Image:') || href.includes('Map:')) {
+      const fileName = href.replace(/^(\.\/|\/wiki\/)/, '');
+      a.setAttribute('href', 'https://en.wikipedia.org/wiki/' + fileName);
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+
+  // Remove elements that disrupt custom layout
   doc.querySelectorAll('.mw-editsection, .navbox, .vertical-navbox, .mw-empty-elt, style, script').forEach(el => el.remove());
 
   return doc.body.innerHTML;
+}
+
+/* ============ LIGHTBOX ZOOM FEATURE ============ */
+function createLightbox() {
+  if ($("imgLightbox")) return $("imgLightbox");
+  const lb = document.createElement("div");
+  lb.id = "imgLightbox";
+  lb.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.88);display:none;align-items:center;justify-content:center;z-index:99999;cursor:zoom-out;backdrop-filter:blur(6px);padding:20px;box-sizing:border-box;";
+  lb.innerHTML = '<img id="lbImg" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.7);object-fit:contain;transition:transform 0.2s ease;">';
+  document.body.appendChild(lb);
+  
+  lb.addEventListener("click", () => lb.style.display = "none");
+  return lb;
+}
+
+function openZoomImage(src) {
+  const lb = createLightbox();
+  const img = $("lbImg");
+  if (img) img.src = src;
+  lb.style.display = "flex";
+  beep(1000);
 }
 
 /* ============ 8-BIT SOUND SYSTEM ============ */
@@ -230,7 +272,6 @@ const cache = new Map();
 async function fetchPage(t){
   if (cache.has(t)) return cache.get(t);
 
-  // Use parse API to get full HTML including tables, infoboxes, graphs, and images
   const q = `${API}?action=parse&page=${encodeURIComponent(t)}&prop=text|images|displaytitle&redirects=1&format=json&origin=*`;
   const res = await fetch(q);
   const json = await res.json();
@@ -289,15 +330,31 @@ function showError(msg){
   beep(220, .2);
 }
 
-/* Dynamic click handler for sub-links inside article body */
+/* Dynamic click handler for sub-links & image zooming */
 if ($("extract")) {
   $("extract").addEventListener("click", e => {
+    // 1. Intercept Image Clicks to Zoom In-App (No redirecting to File: pages)
+    const clickedImg = e.target.closest("img");
+    if (clickedImg && clickedImg.src) {
+      e.preventDefault();
+      e.stopPropagation();
+      openZoomImage(clickedImg.src);
+      return;
+    }
+
+    // 2. Handle Sub-Article Links
     const a = e.target.closest("a");
     if (!a) return;
     
     let href = a.getAttribute("href") || "";
 
-    // Normalize relative Wikipedia links (e.g. "./Topic", "/wiki/Topic", "http.../wiki/Topic")
+    // Open MediaWiki file/image pages in a separate tab
+    if (href.includes("/wiki/File:") || href.includes("File:") || href.includes("Image:")) {
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      return;
+    }
+
     if (href.startsWith("./")) {
       href = href.replace("./", "/wiki/");
     }
@@ -315,6 +372,20 @@ if ($("extract")) {
     }
   });
 }
+
+/* ============ ISOLATE SIDEBAR MOUSE WHEEL SCROLLING ============ */
+document.querySelectorAll(".sidebar, aside, .left-panel, .nav-panel").forEach(sidebar => {
+  sidebar.addEventListener("wheel", e => {
+    const scrollTop = sidebar.scrollTop;
+    const scrollHeight = sidebar.scrollHeight;
+    const height = sidebar.clientHeight;
+    const delta = e.deltaY;
+
+    if ((delta > 0 && scrollTop + height >= scrollHeight - 2) || (delta < 0 && scrollTop <= 2)) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+});
 
 /* ============ DISCOVERY MODES ============ */
 async function roll(){
@@ -400,7 +471,7 @@ if ($("trickPotd")) {
       
       render({
         title: titleText,
-        extract: imgUrl ? `<div style="text-align:center;margin-bottom:15px;"><img src="${imgUrl}" style="max-width:100%;max-height:400px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);" alt="${escapeAttr(titleText)}"></div><p>${descText}</p>` : `<p>${descText}</p>`,
+        extract: imgUrl ? `<div style="text-align:center;margin-bottom:15px;"><img src="${imgUrl}" style="max-width:100%;max-height:400px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);cursor:zoom-in;" alt="${escapeAttr(titleText)}"></div><p>${descText}</p>` : `<p>${descText}</p>`,
         img: null,
         url: d.tfa && d.tfa.content_urls ? d.tfa.content_urls.desktop.page : "https://en.wikipedia.org/wiki/Wikipedia:Picture_of_the_day"
       }, "🖼️ PICTURE OF THE DAY", "media");
@@ -583,6 +654,10 @@ if ($("cardBody")) $("cardBody").addEventListener("scroll", onScrollProgress, { 
 /* ============ KEYBOARD SHORTCUTS ============ */
 document.addEventListener("keydown", e => {
   if (e.repeat) return;
+  if (e.key === "Escape") {
+    const lb = $("imgLightbox");
+    if (lb && lb.style.display !== "none") { lb.style.display = "none"; return; }
+  }
   if (e.target.matches("input,textarea,select")) { if (e.key === "Escape") e.target.blur(); return; }
   if (e.code === "Space") { e.preventDefault(); roll(); }
   else if (e.code === "KeyR") toggleRoulette();
