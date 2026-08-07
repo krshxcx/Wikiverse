@@ -262,3 +262,21 @@ input[type="range"] { width: 100%; accent-color: var(--accent); height: 26px; cu
   .article-content img { max-height: 52vh; }
   .popover { right: 10px; }
 }
+
+/* ============ SINGLE ADULT PILL ============ */
+.badge.k-adult { background: var(--red); }
+.pill[data-cat="adult"]:hover { background: rgba(231,76,60,.05); border-color: rgba(231,76,60,.3); }
+.pill[data-cat="adult"].active { background: var(--red); border-color: var(--red); box-shadow: 0 3px 10px rgba(231,76,60,.35); }
+/* ============ THE FILTHY PILL ============ */
+.badge.k-adult { background: var(--red); box-shadow: 0 0 14px rgba(231,76,60,.5); }
+.pill[data-cat="adult"] { color: var(--red); font-weight: 600; }
+.pill[data-cat="adult"]:hover { background: rgba(231,76,60,.08); border-color: rgba(231,76,60,.4); }
+.pill[data-cat="adult"].active {
+  background: var(--red); color: #fff; border-color: var(--red);
+  box-shadow: 0 3px 14px rgba(231,76,60,.5);
+  animation: filthyPulse 1.4s ease-in-out infinite;
+}
+@keyframes filthyPulse {
+  0%, 100% { box-shadow: 0 3px 14px rgba(231,76,60,.4); }
+  50% { box-shadow: 0 3px 22px rgba(231,76,60,.75); }
+}
