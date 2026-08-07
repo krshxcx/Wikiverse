@@ -235,12 +235,6 @@ function render(a, badge, kind){
   if ($("wikiLink")) $("wikiLink").href = a.url;
   const words = (($("extract") && $("extract").innerText) || "").trim().split(/\s+/).filter(Boolean).length;
   if ($("metaLine")) $("metaLine").textContent = `≈ ${Math.max(1, Math.round(words / 220))} MIN READ · ${words.toLocaleString()} WORDS`;
-  if ($("extract")) {
-    $("extract").querySelectorAll("a").forEach(l => {
-      const h = l.getAttribute("href") || "";
-      if (!h.startsWith("/wiki/")) { l.target = "_blank"; l.rel = "noopener"; }
-    });
-  }
   if ($("loader")) $("loader").classList.remove("show");
   if ($("result")) $("result").classList.add("show");
   const cb = $("cardBody");
@@ -262,13 +256,23 @@ function showError(msg){
   beep(220, .2);
 }
 
+/* Dynamic click handler for sub-links inside article body */
 if ($("extract")) {
   $("extract").addEventListener("click", e => {
-    const a = e.target.closest("a"); if (!a) return;
-    const h = a.getAttribute("href") || "";
-    if (h.startsWith("/wiki/") && !h.slice(6).includes(":") && !a.classList.contains("new")) {
-      e.preventDefault();
-      loadByTitle(decodeURIComponent(h.slice(6)), "🔗 FROM LINK", "link");
+    const a = e.target.closest("a");
+    if (!a) return;
+    
+    const href = a.getAttribute("href") || "";
+    if (href.startsWith("/wiki/")) {
+      const articleTitle = href.replace("/wiki/", "");
+      if (!articleTitle.includes(":")) {
+        e.preventDefault();
+        const cleanTitle = decodeURIComponent(articleTitle).replace(/_/g, " ");
+        loadByTitle(cleanTitle, "🔗 FROM LINK", "link");
+      }
+    } else if (href.startsWith("http")) {
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
     }
   });
 }
@@ -331,7 +335,7 @@ if ($("trickTrail")) {
   });
 }
 
-/* FIXED POTD FUNCTION */
+/* POTD function */
 if ($("trickPotd")) {
   $("trickPotd").addEventListener("click", async () => {
     if (busy) return; busy = true; showLoader(); beep(900);
