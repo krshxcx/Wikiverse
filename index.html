@@ -17,15 +17,19 @@
 
 <canvas id="stars"></canvas>
 
+<!-- MOBILE DRAWER -->
+<button class="drawer-toggle" id="drawerToggle" aria-label="Toggle navigation">☰</button>
+<div class="drawer-overlay" id="drawerOverlay"></div>
+
 <!-- ============ TOPBAR ============ -->
 <div class="topbar">
   <div class="brand">
     <img src="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png" alt="Wikiverse logo">
     <div>
-      <div class="brand-name">WIKI<em></em></div>
+      <div class="brand-name">WIKI<em>VERSE</em></div>
       <div class="brand-sub">// INFINITE KNOWLEDGE EXPLORER</div>
     </div>
-  </div> 
+  </div>
   <div class="top-status">
     <span class="dot-live"></span>
     <span id="clock">00:00:00 UTC</span>
@@ -38,8 +42,8 @@
 
 <div class="app-shell">
 
-  <!-- ============ LEFT: SEARCH / CATEGORY / STATS ============ -->
-  <div class="sidebar">
+  <!-- ============ LEFT SIDEBAR ============ -->
+  <div class="sidebar sidebar-left" id="sidebarLeft">
     <div class="window">
       <div class="titlebar"><span>SEARCH</span></div>
       <div class="body">
@@ -92,6 +96,7 @@
       <div class="titlebar viewer-titlebar">
         <span>KNOWLEDGE VIEWER ▸ <b id="vibeLabel">Anything</b></span>
         <div class="viewer-actions">
+          <button class="ibtn" id="wikiSrcBtn" title="View on Wikipedia">🌐</button>
           <button class="ibtn" id="likeBtn" title="Like [L]">🤍</button>
           <button class="ibtn" id="favBtn" title="Favorite [F]">☆</button>
           <button class="ibtn" id="saveBtn" title="Archive [S]">💾</button>
@@ -111,12 +116,10 @@
         <div id="result">
           <span class="badge" id="badge">RANDOM FIND</span>
           <div class="content">
-            <img class="thumb" id="thumb" style="display:none" alt="Article thumbnail">
             <div class="details">
               <h2 id="title"></h2>
               <div class="meta-line" id="metaLine"></div>
               <div id="extract" class="article-content"></div>
-              <a class="btn-src" id="wikiLink" href="#" target="_blank" rel="noopener">VIEW ORIGINAL ON WIKIPEDIA ↗</a>
             </div>
           </div>
         </div>
@@ -129,8 +132,8 @@
     </div>
   </div>
 
-  <!-- ============ RIGHT: ACCOUNT / TRICKS ============ -->
-  <div class="sidebar">
+  <!-- ============ RIGHT SIDEBAR ============ -->
+  <div class="sidebar sidebar-right">
     <div class="window" id="authWin">
       <div class="titlebar"><span>ACCOUNT</span></div>
       <div class="body" id="authForms">
