@@ -1,267 +1,324 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WIKIVERSE — Infinite Knowledge Explorer</title>
-<link rel="icon" href="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-500-normal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-700-normal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-400-normal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-600-normal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600-normal.css">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
+  <meta name="theme-color" content="#f4f6f8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description"
+    content="WIKIVERSE — Infinite Knowledge Explorer. Discover random Wikipedia articles with categories, streaks, 8-bit sounds, and a beautiful reader.">
+  <title>WIKIVERSE — Infinite Knowledge Explorer</title>
+  <link rel="icon"
+    href="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-500-normal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-700-normal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-400-normal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-600-normal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600-normal.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 
-<canvas id="stars"></canvas>
+  <canvas id="stars"></canvas>
 
-<button class="drawer-toggle" id="drawerToggle" aria-label="Toggle navigation">☰</button>
-<div class="drawer-overlay" id="drawerOverlay"></div>
-
-<!-- ============ TOPBAR ============ -->
-<div class="topbar">
-  <div class="topbar-inner">
-    <div class="brand">
-      <img src="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png" alt="Wikiverse logo">
-      <div>
-        <div class="brand-name">WIKI<em>VERSE</em></div>
-        <div class="brand-sub">// INFINITE KNOWLEDGE EXPLORER</div>
-      </div>
-    </div>
-    <div class="top-status">
-      <span class="dot-live"></span>
-      <span id="clock">00:00:00 UTC</span>
-      <button class="ibtn" id="themeBtn" title="Toggle theme">🌙</button>
-      <div class="user-chip" id="userChip" title="Account">
-        <div class="ava" id="userChipAva">◌</div><span id="userChipName">PROFILE</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ============ ACCOUNT POPOVER (top-right chip) ============ -->
-<div class="popover" id="accountPop">
-  <div class="pop-head"><span class="pop-title">ACCOUNT</span><button class="ibtn pop-close" data-close="accountPop" title="Close">✕</button></div>
-  <div class="body" id="authForms">
-    <form id="loginForm">
-      <input type="text" id="loginUser" placeholder="Username" class="auth-input" autocomplete="username">
-      <div class="pass-wrap">
-        <input type="password" id="loginPass" placeholder="Password" class="auth-input" autocomplete="current-password">
-        <button type="button" class="pass-eye" id="togglePass1" title="Show / hide">👁️</button>
-      </div>
-      <label class="remember"><input type="checkbox" id="loginRemember" checked> Remember me on this device</label>
-      <button class="btn-primary" type="submit">LOGIN</button>
-      <p class="auth-switch">New explorer? <a id="toRegister">Create an account</a></p>
-    </form>
-    <form id="registerForm" style="display:none;">
-      <input type="text" id="regUser" placeholder="Choose username (3–16 chars)" class="auth-input">
-      <div class="pass-wrap">
-        <input type="password" id="regPass" placeholder="Choose password (min 4 chars)" class="auth-input">
-        <button type="button" class="pass-eye" id="togglePass2" title="Show / hide">👁️</button>
-      </div>
-      <button class="btn-primary" type="submit">REGISTER</button>
-      <p class="auth-switch">Already registered? <a id="toLogin">Sign in</a></p>
-    </form>
-    <div class="demo-hint">DEMO ACCESS → krshxcx / krshxcx</div>
-  </div>
-  <div class="body" id="profileView" style="display:none;">
-    <div class="profile-head">
-      <div class="ava-big" id="avaBig">?</div>
-      <div><h3 id="welcomeUser"></h3><small>● LOGGED IN</small></div>
-    </div>
-    <div class="profile-tabs">
-      <button class="tab-btn active" data-tab="saved">SAVED <b id="cntSaved">0</b></button>
-      <button class="tab-btn" data-tab="fav">FAVORITES <b id="cntFav">0</b></button>
-      <button class="tab-btn" data-tab="liked">LIKED <b id="cntLiked">0</b></button>
-    </div>
-    <div class="profile-list" id="profileList"></div>
-    <button class="btn-danger" id="logoutBtn">LOGOUT</button>
-    <button class="btn-danger" id="deleteAccBtn">DELETE ACCOUNT</button>
-  </div>
-</div>
-
-<!-- ============ SETTINGS + ABOUT POPOVER (gear button) ============ -->
-<div class="popover popover-wide" id="settingsPop">
-  <div class="pop-head"><span class="pop-title">SETTINGS &amp; ABOUT</span><button class="ibtn pop-close" data-close="settingsPop" title="Close">✕</button></div>
-  <div class="pop-tabs">
-    <button class="tab-btn active" data-pop="view">🎨 VIEW</button>
-    <button class="tab-btn" data-pop="about">ℹ️ ABOUT</button>
-  </div>
-  <div class="body" id="popView">
-    <label class="set-label">TEXT SIZE <b id="sizeVal">15px</b></label>
-    <input type="range" id="setSize" min="13" max="20" step="1" value="15">
-    <label class="set-label">FONT FACE (15 STYLES)</label>
-    <select id="setFont" class="set-select">
-      <option value="inter">01 · Inter — clean</option>
-      <option value="grotesk">02 · Space Grotesk — display</option>
-      <option value="mono">03 · IBM Plex Mono — terminal</option>
-      <option value="system">04 · System UI — native</option>
-      <option value="segoe">05 · Segoe UI — windows</option>
-      <option value="helvetica">06 · Helvetica — classic</option>
-      <option value="arial">07 · Arial — everywhere</option>
-      <option value="verdana">08 · Verdana — wide</option>
-      <option value="trebuchet">09 · Trebuchet MS — friendly</option>
-      <option value="tahoma">10 · Tahoma — tight</option>
-      <option value="georgia">11 · Georgia — book</option>
-      <option value="times">12 · Times New Roman — academic</option>
-      <option value="garamond">13 · Garamond — elegant</option>
-      <option value="palatino">14 · Palatino — renaissance</option>
-      <option value="courier">15 · Courier New — typewriter</option>
-    </select>
-    <label class="set-label">COLUMN WIDTH <b id="widthVal">860px</b></label>
-    <input type="range" id="setWidth" min="640" max="1100" step="20" value="860">
-    <label class="set-label">LINE SPACING</label>
-    <select id="setSpacing" class="set-select">
-      <option value="cozy">Cozy (1.85)</option>
-      <option value="compact">Compact (1.6)</option>
-      <option value="air">Airy (2.1)</option>
-    </select>
-    <div class="set-row">
-      <label class="remember"><input type="checkbox" id="setImages" checked> Show images</label>
-      <label class="remember"><input type="checkbox" id="setJustify"> Justify text</label>
-    </div>
-    <button class="btn-danger" id="resetView">RESET DEFAULTS</button>
-  </div>
-  <div class="body" id="popAbout" style="display:none;">
-    <p class="about-text"><b>WHY WIKIVERSE EXISTS</b> — Wikipedia is the greatest rabbit hole humans ever built, but reading it should feel like a <b>game</b>, not a chore. WIKIVERSE turns infinite knowledge into exploration: random finds, categories, streaks, 8-bit sounds and a reader you can tune exactly to your eyes. No ads, no tracking, no algorithmic feed — just pure, uncut human knowledge, rendered by your own browser.</p>
-    <div class="creator-card">
-      <div class="ava-big">K</div>
-      <div><h4>krshxcx</h4><small>CREATOR · SAIKRISHNA DURGAM</small></div>
-    </div>
-    <div class="social-links">
-      <a href="https://www.linkedin.com/in/saikrishna-durgam/" target="_blank" rel="noreferrer">LinkedIn</a>
-      <a href="https://github.com/krshxcx" target="_blank" rel="noreferrer">GitHub</a>
-      <a href="mailto:krshxcx@gmail.com">Email</a>
-    </div>
-  </div>
-</div>
-
-<div class="app-shell">
-
-  <!-- ============ LEFT: SEARCH + CATEGORY ONLY ============ -->
-  <div class="sidebar sidebar-left" id="sidebarLeft">
-    <div class="window">
-      <div class="titlebar"><span>SEARCH</span></div>
-      <div class="body">
-        <div class="scan-wrap">
-          <input class="scan-input" id="scanInput" placeholder="Search anything…" autocomplete="off">
-          <div class="scan-results" id="scanResults"></div>
+  <!-- ============ TOPBAR ============ -->
+  <div class="topbar">
+    <div class="topbar-inner">
+      <button class="drawer-toggle" id="drawerToggle" aria-label="Toggle navigation">☰</button>
+      <div class="brand">
+        <img
+          src="https://image.qwenlm.ai/public_source/8e1d7325-0321-42f5-b670-dde30b29fbb0/1ef2f78ba-3918-4b73-a824-900a90c01c66.png"
+          alt="Wikiverse logo" width="38" height="38">
+        <div>
+          <div class="brand-name">WIKI<em>VERSE</em></div>
+          <div class="brand-sub">// INFINITE KNOWLEDGE EXPLORER</div>
         </div>
-        <div class="scan-hint">PRESS / TO FOCUS · ENTER TO OPEN TOP HIT</div>
+      </div>
+      <div class="top-status">
+        <span class="dot-live"></span>
+        <span id="clock">00:00:00 UTC</span>
+        <button class="ibtn" id="themeBtn" title="Toggle theme">🌙</button>
+        <div class="user-chip" id="userChip" title="Account">
+          <div class="ava" id="userChipAva">◌</div><span id="userChipName">PROFILE</span>
+        </div>
       </div>
     </div>
-    <div class="window">
-      <div class="titlebar"><span>CATEGORY</span></div>
-      <div class="body">
-        <div class="vibe-list" id="pills">
-          <button class="pill active" data-cat="all" data-name="Anything"><span class="em">🌐</span>Anything</button>
-          <button class="pill" data-cat="Philosophy" data-name="Philosophy"><span class="em">🏛️</span>Philosophy</button>
-          <button class="pill" data-cat="Psychology" data-name="Psychology"><span class="em">🧠</span>Psychology</button>
-          <button class="pill" data-cat="Biology" data-name="Biology"><span class="em">🧬</span>Biology</button>
-          <button class="pill" data-cat="Physics" data-name="Physics"><span class="em">⚛️</span>Physics</button>
-          <button class="pill" data-cat="Mathematics" data-name="Mathematics"><span class="em">🔢</span>Mathematics</button>
-          <button class="pill" data-cat="History" data-name="History"><span class="em">📜</span>History</button>
-          <button class="pill" data-cat="Art" data-name="Art"><span class="em">🎨</span>Art</button>
-          <button class="pill" data-cat="Music" data-name="Music"><span class="em">🎵</span>Music</button>
-          <button class="pill" data-cat="Geography" data-name="Geography"><span class="em">🗺️</span>Geography</button>
-          <button class="pill" data-cat="Technology" data-name="Technology"><span class="em">💾</span>Technology</button>
-          <button class="pill" data-cat="Astronomy" data-name="Astronomy"><span class="em">🔭</span>Astronomy</button>
-          <button class="pill" data-cat="Human_sexuality" data-name="Sexuality"><span class="em">💞</span>Sexuality</button>
-          <button class="pill" data-cat="Unsolved_mysteries" data-name="Mysteries"><span class="em">🕵️</span>Mysteries</button>
-          <button class="pill" data-cat="adult" data-name="Adult"><span class="em">🔞</span>Adult</button>
-          <button class="pill" data-cat="Conspiracy_theories" data-name="Conspiracy"><span class="em">🕸️</span>Conspiracy</button>
+  </div>
+
+  <!-- ============ ACCOUNT POPOVER (top-right chip) ============ -->
+  <div class="popover" id="accountPop">
+    <div class="pop-head"><span class="pop-title">ACCOUNT</span><button class="ibtn pop-close" data-close="accountPop"
+        title="Close">✕</button></div>
+    <div class="body" id="authForms">
+      <form id="loginForm">
+        <input type="text" id="loginUser" placeholder="Username" class="auth-input" autocomplete="username">
+        <div class="pass-wrap">
+          <input type="password" id="loginPass" placeholder="Password" class="auth-input"
+            autocomplete="current-password">
+          <button type="button" class="pass-eye" id="togglePass1" title="Show / hide">👁️</button>
+        </div>
+        <label class="remember"><input type="checkbox" id="loginRemember" checked> Remember me on this device</label>
+        <button class="btn-primary" type="submit">LOGIN</button>
+        <p class="auth-switch">New explorer? <a id="toRegister">Create an account</a></p>
+      </form>
+      <form id="registerForm" style="display:none;">
+        <input type="text" id="regUser" placeholder="Choose username (3–16 chars)" class="auth-input">
+        <div class="pass-wrap">
+          <input type="password" id="regPass" placeholder="Choose password (min 4 chars)" class="auth-input">
+          <button type="button" class="pass-eye" id="togglePass2" title="Show / hide">👁️</button>
+        </div>
+        <button class="btn-primary" type="submit">REGISTER</button>
+        <p class="auth-switch">Already registered? <a id="toLogin">Sign in</a></p>
+      </form>
+      <div class="demo-hint">DEMO ACCESS → krshxcx / krshxcx</div>
+    </div>
+    <div class="body" id="profileView" style="display:none;">
+      <div class="profile-head">
+        <div class="ava-big" id="avaBig">?</div>
+        <div>
+          <h3 id="welcomeUser"></h3><small>● LOGGED IN</small>
+        </div>
+      </div>
+      <div class="profile-tabs">
+        <button class="tab-btn active" data-tab="saved">SAVED <b id="cntSaved">0</b></button>
+        <button class="tab-btn" data-tab="fav">FAVORITES <b id="cntFav">0</b></button>
+        <button class="tab-btn" data-tab="liked">LIKED <b id="cntLiked">0</b></button>
+      </div>
+      <div class="profile-list" id="profileList"></div>
+      <button class="btn-danger" id="logoutBtn">LOGOUT</button>
+      <button class="btn-danger" id="deleteAccBtn">DELETE ACCOUNT</button>
+    </div>
+  </div>
+
+  <!-- ============ SETTINGS + ABOUT POPOVER (gear button) ============ -->
+  <div class="popover popover-wide" id="settingsPop">
+    <div class="pop-head"><span class="pop-title">SETTINGS &amp; ABOUT</span><button class="ibtn pop-close"
+        data-close="settingsPop" title="Close">✕</button></div>
+    <div class="pop-tabs">
+      <button class="tab-btn active" data-pop="view">🎨 VIEW</button>
+      <button class="tab-btn" data-pop="about">ℹ️ ABOUT</button>
+    </div>
+    <div class="body" id="popView">
+      <label class="set-label">TEXT SIZE <b id="sizeVal">15px</b></label>
+      <input type="range" id="setSize" min="13" max="20" step="1" value="15">
+      <label class="set-label">FONT FACE (15 STYLES)</label>
+      <select id="setFont" class="set-select">
+        <option value="inter">01 · Inter — clean</option>
+        <option value="grotesk">02 · Space Grotesk — display</option>
+        <option value="mono">03 · IBM Plex Mono — terminal</option>
+        <option value="system">04 · System UI — native</option>
+        <option value="segoe">05 · Segoe UI — windows</option>
+        <option value="helvetica">06 · Helvetica — classic</option>
+        <option value="arial">07 · Arial — everywhere</option>
+        <option value="verdana">08 · Verdana — wide</option>
+        <option value="trebuchet">09 · Trebuchet MS — friendly</option>
+        <option value="tahoma">10 · Tahoma — tight</option>
+        <option value="georgia">11 · Georgia — book</option>
+        <option value="times">12 · Times New Roman — academic</option>
+        <option value="garamond">13 · Garamond — elegant</option>
+        <option value="palatino">14 · Palatino — renaissance</option>
+        <option value="courier">15 · Courier New — typewriter</option>
+      </select>
+      <label class="set-label">COLUMN WIDTH <b id="widthVal">860px</b></label>
+      <input type="range" id="setWidth" min="640" max="1100" step="20" value="860">
+      <label class="set-label">LINE SPACING</label>
+      <select id="setSpacing" class="set-select">
+        <option value="cozy">Cozy (1.85)</option>
+        <option value="compact">Compact (1.6)</option>
+        <option value="air">Airy (2.1)</option>
+      </select>
+      <div class="set-row">
+        <label class="remember"><input type="checkbox" id="setImages" checked> Show images</label>
+        <label class="remember"><input type="checkbox" id="setJustify"> Justify text</label>
+      </div>
+      <button class="btn-danger" id="resetView">RESET DEFAULTS</button>
+    </div>
+    <div class="body" id="popAbout" style="display:none;">
+      <p class="about-text"><b>WHY WIKIVERSE EXISTS</b> — Wikipedia is the greatest rabbit hole humans ever built, but
+        reading it should feel like a <b>game</b>, not a chore. WIKIVERSE turns infinite knowledge into exploration:
+        random finds, categories, streaks, 8-bit sounds and a reader you can tune exactly to your eyes. No ads, no
+        tracking, no algorithmic feed — just pure, uncut human knowledge, rendered by your own browser.</p>
+      <div class="creator-card">
+        <div class="ava-big">K</div>
+        <div>
+          <h4>krshxcx</h4><small>CREATOR · SAIKRISHNA DURGAM</small>
+        </div>
+      </div>
+      <div class="social-links">
+        <a href="https://www.linkedin.com/in/saikrishna-durgam/" target="_blank" rel="noreferrer">LinkedIn</a>
+        <a href="https://github.com/krshxcx" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="mailto:krshxcx@gmail.com">Email</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+
+    <!-- ============ LEFT: SEARCH + CATEGORY ONLY ============ -->
+    <div class="sidebar sidebar-left" id="sidebarLeft">
+      <div class="window">
+        <div class="titlebar"><span>SEARCH</span></div>
+        <div class="body">
+          <div class="scan-wrap">
+            <input class="scan-input" id="scanInput" placeholder="Search anything…" autocomplete="off">
+            <div class="scan-results" id="scanResults"></div>
+          </div>
+          <div class="scan-hint">PRESS / TO FOCUS · ENTER TO OPEN TOP HIT</div>
+        </div>
+      </div>
+      <div class="window">
+        <div class="titlebar"><span>CATEGORY</span></div>
+        <div class="body">
+          <div class="vibe-list" id="pills">
+            <button class="pill active" data-cat="all" data-name="Anything"><span class="em">🌐</span>Anything</button>
+            <button class="pill" data-cat="Philosophy" data-name="Philosophy"><span
+                class="em">🏛️</span>Philosophy</button>
+            <button class="pill" data-cat="Psychology" data-name="Psychology"><span
+                class="em">🧠</span>Psychology</button>
+            <button class="pill" data-cat="Biology" data-name="Biology"><span class="em">🧬</span>Biology</button>
+            <button class="pill" data-cat="Physics" data-name="Physics"><span class="em">⚛️</span>Physics</button>
+            <button class="pill" data-cat="Mathematics" data-name="Mathematics"><span
+                class="em">🔢</span>Mathematics</button>
+            <button class="pill" data-cat="History" data-name="History"><span class="em">📜</span>History</button>
+            <button class="pill" data-cat="Art" data-name="Art"><span class="em">🎨</span>Art</button>
+            <button class="pill" data-cat="Music" data-name="Music"><span class="em">🎵</span>Music</button>
+            <button class="pill" data-cat="Geography" data-name="Geography"><span
+                class="em">🗺️</span>Geography</button>
+            <button class="pill" data-cat="Technology" data-name="Technology"><span
+                class="em">💾</span>Technology</button>
+            <button class="pill" data-cat="Astronomy" data-name="Astronomy"><span class="em">🔭</span>Astronomy</button>
+            <button class="pill" data-cat="Human_sexuality" data-name="Sexuality"><span
+                class="em">💞</span>Sexuality</button>
+            <button class="pill" data-cat="adult" data-name="Adult"><span class="em">🔞</span>Adult</button>
+            <button class="pill" data-cat="Unsolved_mysteries" data-name="Mysteries"><span
+                class="em">🕵️</span>Mysteries</button>
+            <button class="pill" data-cat="Conspiracy_theories" data-name="Conspiracy"><span
+                class="em">🕸️</span>Conspiracy</button>
             <button class="pill" data-cat="Mythology" data-name="Mythology"><span class="em">🐉</span>Mythology</button>
             <button class="pill" data-cat="Cryptids" data-name="Cryptids"><span class="em">🦑</span>Cryptids</button>
             <button class="pill" data-cat="Occult" data-name="Occult"><span class="em">🧿</span>Occult</button>
             <button class="pill" data-cat="Paradoxes" data-name="Paradoxes"><span class="em">🧩</span>Paradoxes</button>
-            <button class="pill" data-cat="Consciousness" data-name="Consciousness"><span class="em">💭</span>Consciousness</button>
+            <button class="pill" data-cat="Consciousness" data-name="Consciousness"><span
+                class="em">💭</span>Consciousness</button>
             <button class="pill" data-cat="Artificial_intelligence" data-name="AI"><span class="em">🤖</span>AI</button>
             <button class="pill" data-cat="Internet_memes" data-name="Memes"><span class="em">😹</span>Memes</button>
-            <button class="pill" data-cat="Pirates" data-name="Pirates"><span class="em">🏴☠️</span>Pirates</button>
-            <button class="pill" data-cat="Serial_killers" data-name="True Crime"><span class="em">🔪</span>Crime/Serial Killers</button>
+            <button class="pill" data-cat="Pirates" data-name="Pirates"><span class="em">🏴‍☠️</span>Pirates</button>
+            <button class="pill" data-cat="Serial_killers" data-name="Crime/Serial Killers"><span
+                class="em">🔪</span>True Crime</button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ============ CENTER: VIEWER ============ -->
-  <div class="main-content">
-    <div class="window viewer-window">
-      <div class="titlebar viewer-titlebar">
-        <span>KNOWLEDGE VIEWER ▸ <b id="vibeLabel">Anything</b></span>
-        <div class="viewer-actions">
-          <button class="ibtn" id="wikiSrcBtn" title="View on Wikipedia">🌐</button>
-          <button class="ibtn" id="likeBtn" title="Like [L]">🤍</button>
-          <button class="ibtn" id="favBtn" title="Favorite [F]">☆</button>
-          <button class="ibtn" id="saveBtn" title="Archive [S]">💾</button>
-          <button class="ibtn" id="copyTextBtn" title="Copy text">📄</button>
-          <button class="ibtn" id="copyLinkBtn" title="Copy link">🔗</button>
-          <button class="ibtn" id="shareBtn" title="Share">📡</button>
-          <button class="ibtn" id="speakBtn" title="Read aloud">🔉</button>
-          <button class="ibtn" id="viewSettingsBtn" title="Settings & about">⚙️</button>
-          <button class="btn-next" id="nextBtn" title="Next article [SPACE]">NEXT ➜</button>
+    <!-- ============ CENTER: VIEWER ============ -->
+    <div class="main-content">
+      <div class="window viewer-window">
+        <div class="titlebar viewer-titlebar">
+          <span>KNOWLEDGE VIEWER ▸ <b id="vibeLabel">Anything</b></span>
+          <div class="viewer-actions">
+            <button class="ibtn" id="wikiSrcBtn" title="View on Wikipedia">🌐</button>
+            <button class="ibtn" id="likeBtn" title="Like [L]">🤍</button>
+            <button class="ibtn" id="favBtn" title="Favorite [F]">☆</button>
+            <button class="ibtn" id="saveBtn" title="Archive [S]">💾</button>
+            <button class="ibtn" id="copyTextBtn" title="Copy text">📄</button>
+            <button class="ibtn" id="copyLinkBtn" title="Copy link">🔗</button>
+            <button class="ibtn" id="shareBtn" title="Share">📡</button>
+            <button class="ibtn" id="speakBtn" title="Read aloud">🔉</button>
+            <button class="ibtn" id="viewSettingsBtn" title="Settings & about">⚙️</button>
+            <button class="btn-next" id="nextBtn" title="Next article [SPACE]">NEXT ➜</button>
+          </div>
         </div>
-      </div>
-      <div class="progress"><div id="progressFill"></div></div>
-      <div class="body card-body" id="cardBody">
-        <div class="loader" id="loader">
-          <div class="dots"><span class="g"></span><span class="p"></span><span class="c"></span></div>
-          SUMMONING KNOWLEDGE…
+        <div class="progress">
+          <div id="progressFill"></div>
         </div>
-        <div id="result">
-          <span class="badge" id="badge">RANDOM FIND</span>
-          <div class="content">
-            <div class="details">
-              <h2 id="title"></h2>
-              <div class="meta-line" id="metaLine"></div>
-              <div id="extract" class="article-content"></div>
+        <div class="body card-body" id="cardBody">
+          <div class="loader" id="loader">
+            <div class="dots"><span class="g"></span><span class="p"></span><span class="c"></span></div>
+            SUMMONING KNOWLEDGE…
+          </div>
+          <div id="result">
+            <span class="badge" id="badge">RANDOM FIND</span>
+            <div class="content">
+              <div class="details">
+                <h2 id="title"></h2>
+                <div class="meta-line" id="metaLine"></div>
+                <div id="extract" class="article-content"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ============ RIGHT: STATS + TRICKS + HISTORY ============ -->
-  <div class="sidebar sidebar-right">
-    <div class="window">
-      <div class="titlebar"><span>STATS</span></div>
-      <div class="body">
-        <div class="stats-grid">
-          <div class="stat"><b id="statTotal">0</b><span>TOTAL FINDS</span></div>
-          <div class="stat"><b id="statSession">0</b><span>THIS SESSION</span></div>
-          <div class="stat"><b id="statStreak">0d</b><span>DAY STREAK</span></div>
-          <div class="stat"><b id="statSaved">—</b><span>ARCHIVED</span></div>
+    <!-- ============ RIGHT: STATS + TRICKS + HISTORY ============ -->
+    <div class="sidebar sidebar-right">
+      <div class="window expanded">
+        <div class="titlebar"><span>STATS</span></div>
+        <div class="body">
+          <div class="stats-grid">
+            <div class="stat"><b id="statTotal">0</b><span>TOTAL FINDS</span></div>
+            <div class="stat"><b id="statSession">0</b><span>THIS SESSION</span></div>
+            <div class="stat"><b id="statStreak">0d</b><span>DAY STREAK</span></div>
+            <div class="stat"><b id="statSaved">—</b><span>ARCHIVED</span></div>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="window">
-      <div class="titlebar"><span>TRICKS &amp; SOUND</span></div>
-      <div class="body">
-        <div class="tricks">
-          <button class="trick" id="trickRandom" title="Roll an article">🎲 Random</button>
-          <button class="trick" id="trickWeird" title="Bizarre & unusual">🤪 Weird</button>
-          <button class="trick" id="trickTrail" title="Everything leads to philosophy">🧭 Trail</button>
-          <button class="trick" id="trickMystery" title="Random unsolved mystery">🔮 Mystery</button>
-          <button class="trick" id="trickPotd" title="Picture of the day">🖼️ POTD</button>
-          <button class="trick" id="trickOtd" title="On this day in history">📅 OTD</button>
-          <button class="trick wide" id="rouletteBtn" title="Auto roulette [R]">🔁 Auto Roulette</button>
-          <button class="trick wide" id="sndBtn" title="Toggle 8-bit sound">🔊 SOUND: ON</button>
+      <div class="window">
+        <div class="titlebar"><span>TRICKS &amp; SOUND</span></div>
+        <div class="body">
+          <div class="tricks">
+            <button class="trick" id="trickRandom" title="Roll an article">🎲 Random</button>
+            <button class="trick" id="trickWeird" title="Bizarre & unusual">🤪 Weird</button>
+            <button class="trick" id="trickTrail" title="Everything leads to philosophy">🧭 Trail</button>
+            <button class="trick" id="trickMystery" title="Random unsolved mystery">🔮 Mystery</button>
+            <button class="trick" id="trickPotd" title="Picture of the day">🖼️ POTD</button>
+            <button class="trick" id="trickOtd" title="On this day in history">📅 OTD</button>
+            <button class="trick wide" id="rouletteBtn" title="Auto roulette [R]">🔁 Auto Roulette</button>
+            <button class="trick wide" id="sndBtn" title="Toggle 8-bit sound">🔊 SOUND: ON</button>
+          </div>
+          <div class="kbd-hint">SPACE next · R roulette · L like · F favorite · S save · / search</div>
         </div>
-        <div class="kbd-hint">SPACE next · R roulette · L like · F favorite · S save · / search</div>
+      </div>
+      <div class="window">
+        <div class="titlebar"><span>RECENTLY VIEWED</span></div>
+        <div class="hist-body" id="histList"><span class="hist-empty">NO ARTICLES YET — START EXPLORING…</span></div>
       </div>
     </div>
-    <div class="window">
-      <div class="titlebar"><span>RECENTLY VIEWED</span></div>
-      <div class="hist-body" id="histList"><span class="hist-empty">NO ARTICLES YET — START EXPLORING…</span></div>
+  </div>
+
+  <!-- ============ MOBILE FLOATING ACTION BAR ============ -->
+  <div class="mobile-fab" id="mobileFab">
+    <div class="mobile-fab-inner">
+      <button class="fab-btn" id="fabMenu" title="Menu">
+        <span class="fab-icon">☰</span>
+        <span>Menu</span>
+      </button>
+      <button class="fab-btn" id="fabLike" title="Like">
+        <span class="fab-icon">🤍</span>
+        <span>Like</span>
+      </button>
+      <button class="fab-btn fab-primary" id="fabNext" title="Next article">
+        <span class="fab-icon">➜</span>
+        <span>Next</span>
+      </button>
+      <button class="fab-btn" id="fabSave" title="Save">
+        <span class="fab-icon">💾</span>
+        <span>Save</span>
+      </button>
+      <button class="fab-btn" id="fabShare" title="Share">
+        <span class="fab-icon">📡</span>
+        <span>Share</span>
+      </button>
     </div>
   </div>
-</div>
 
-<div id="toast"></div>
+  <div id="toast"></div>
 
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
+
 </html>
